@@ -790,3 +790,5 @@ body.editor-open { overflow: hidden; }
 .ne-act.danger { color: var(--danger); }
 @media (max-width: 420px) { .ne-act span { font-size: 0.56rem; } }
 @media (min-width: 900px) { .ne-actions { grid-template-columns: repeat(8, minmax(0, 96px)); } }
+
+.card-sym.is-long { font-size: 1.45rem; }

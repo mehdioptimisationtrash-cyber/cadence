@@ -42,7 +42,7 @@ export const DEFAULT_SONG = {
     params: { style: 'chant', density: 0.55, register: 'mid', syncopation: 0.25, repetition: 0.6 },
   },
   bassLine: { custom: false, notes: [] },
-  generator: { mood: 'reveur', length: 4, beatsPerChord: 4, audace: 0.4, startOnTonic: true, adaptScale: true },
+  generator: { mood: 'reveur', length: 4, beatsPerChord: 4, audace: 0.4, startOnTonic: true, adaptScale: true, smoothBass: 0.5 },
 };
 
 // --- Validation des données venant de l'extérieur (lien partagé, sauvegarde) ---
@@ -126,6 +126,7 @@ export function sanitizeSong(raw) {
       beatsPerChord: oneOf(g.beatsPerChord, [2, 4, 8], 4),
       audace: num(g.audace, 0, 1, 0.4),
       startOnTonic: bool(g.startOnTonic, true),
+      smoothBass: num(g.smoothBass, 0, 1, 0.5),
       adaptScale: bool(g.adaptScale, true),
     },
   };

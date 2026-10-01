@@ -77,3 +77,19 @@ test('melody fits range, timeline and mostly the scale', () => {
   const again = revoiceMelody(notes, { chords, key, seed: 9 });
   assert.deepEqual(again.map((n) => n.start), notes.map((n) => n.start));
 });
+
+test('slash chords: groups, smooth bass and stepwise suggestions', async () => {
+  const { slashGroups, smoothBassLine } = await import('../js/theory/slash.js');
+  const { suggestNext, romanNumeral } = await import('../js/theory/harmony.js');
+  const key = { root: 0, scale: 'major' };
+  const groups = slashGroups(key, 3);
+  assert.ok(groups.find((g) => g.id === 'colors').chords.some((c) => c.root === 5 && c.bass === 7)); // F/G
+  assert.ok(groups.every((g) => g.chords.every((c) => c.bass != null && c.bass !== c.root)));
+  const smooth = smoothBassLine([{ root: 0, quality: 'maj' }, { root: 7, quality: 'maj' }, { root: 9, quality: 'min' }, { root: 5, quality: 'maj' }], 0.8);
+  assert.equal(smooth[1].bass, 11); // G/B
+  assert.equal(smooth[0].bass, null);
+  assert.equal(romanNumeral({ root: 5, quality: 'maj', bass: 7 }, key), 'IV/V');
+  assert.ok(suggestNext({ root: 0, quality: 'maj' }, key, 3, 8).some((s) => s.chord.bass != null));
+  const gen = generateProgression({ key, length: 8, seed: 5, smoothBass: 1 });
+  assert.equal(gen.chords.length >= 8, true);
+});

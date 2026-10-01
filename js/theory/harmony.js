@@ -4,6 +4,7 @@ import { getScale, isHeptatonic, isMinorScale } from './scales.js';
 import {
   getQuality, qualityFromIntervals, isMinorQuality, isDominantQuality, chordPitchClasses,
 } from './chords.js';
+import { inversionsOf, stepwiseCandidates } from './slash.js';
 
 const MAJOR_IV = [0, 2, 4, 5, 7, 9, 11];
 const NUMERALS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
@@ -82,15 +83,23 @@ export function degreeOf(chord, key) {
   return getScale(key.scale).iv.findIndex((iv) => pc(key.root + iv) === pc(chord.root));
 }
 
+function degreeNumeral(p, key, speller, scale) {
+  const degree = (speller.spelling(p).letter - speller.rootLetter + 7) % 7;
+  const ref = isHeptatonic(scale) ? scale.iv : MAJOR_IV;
+  const diff = pc(p - (key.root + ref[degree]));
+  const acc = diff === 1 ? '♯' : diff === 11 ? '♭' : '';
+  return { degree, acc };
+}
+
 export function romanNumeral(chord, key) {
   const scale = getScale(key.scale);
   const speller = makeSpeller(key.root, scale);
-  const degree = (speller.spelling(chord.root).letter - speller.rootLetter + 7) % 7;
-  const ref = isHeptatonic(scale) ? scale.iv : MAJOR_IV;
-  const diff = pc(chord.root - (key.root + ref[degree]));
-  const acc = diff === 1 ? '♯' : diff === 11 ? '♭' : diff === 0 ? '' : '?';
+  const { degree, acc } = degreeNumeral(chord.root, key, speller, scale);
   const numeral = isMinorQuality(chord.quality) ? NUMERALS[degree].toLowerCase() : NUMERALS[degree];
-  return `${acc === '?' ? '' : acc}${numeral}${getQuality(chord.quality).roman}`;
+  const base = `${acc}${numeral}${getQuality(chord.quality).roman}`;
+  if (chord.bass == null || pc(chord.bass) === pc(chord.root)) return base;
+  const b = degreeNumeral(chord.bass, key, speller, scale);
+  return `${base}/${b.acc}${NUMERALS[b.degree]}`;
 }
 
 const FUNCTION_BY_DEGREE = ['T', 'SD', 'T', 'SD', 'D', 'T', 'D'];
@@ -150,8 +159,14 @@ const COLOR_QUALITIES = { maj: ['sus2', 'sus4', 'add9', '6', '69', 'maj7', 'maj9
 export function chordVariants(chord, key, level = 3) {
   const out = [];
   const push = (c, label) => {
-    if (!sameChord(c, chord) && !out.some((o) => sameChord(o.chord, c))) out.push({ chord: { root: pc(c.root), quality: c.quality }, label });
+    const item = { root: pc(c.root), quality: c.quality, bass: c.bass == null || pc(c.bass) === pc(c.root) ? null : pc(c.bass) };
+    if (!sameChord(item, chord) && !out.some((o) => sameChord(o.chord, item))) out.push({ chord: item, label });
   };
+  // Même accord, autre basse : en tête, c'est la variante la plus fréquente.
+  if (chord.bass != null) push({ root: chord.root, quality: chord.quality }, 'Fondamentale à la basse');
+  inversionsOf(chord).slice(0, 3).forEach((inv) => push({ ...chord, bass: inv.bass }, 'Renversement'));
+  const scaleIv = getScale(key.scale).iv;
+  [scaleIv[4], scaleIv[0]].filter((x) => x != null).forEach((x) => push({ ...chord, bass: pc(key.root + x) }, x === 0 ? 'Pédale de tonique' : 'Sur la dominante'));
   const family = isDominantQuality(chord.quality) ? 'dom' : isMinorQuality(chord.quality) ? 'min' : 'maj';
   (COLOR_QUALITIES[family] ?? []).forEach((q) => push({ root: chord.root, quality: q }, 'Couleur'));
   const pcs = new Set(chordPitchClasses(chord));
@@ -166,7 +181,7 @@ export function chordVariants(chord, key, level = 3) {
       .filter((c) => pc(c.root) === pc(chord.root))
       .forEach((c) => push(c, `Emprunt (${g.name.toLowerCase()})`)));
   }
-  return out.slice(0, 14);
+  return out.slice(0, 20);
 }
 
 // Probabilités d'enchaînement entre degrés (inspirées des statistiques de la pop et du jazz).
@@ -251,6 +266,7 @@ export function suggestNext(prev, key, level = 3, count = 8) {
       chord: { root: c.root, quality: c.quality },
       base: 0.4 + (prevDeg >= 0 && heptatonic ? table[prevDeg][c.target.degree] * 4 : 0.5),
     })),
+    ...(heptatonic ? stepwiseCandidates(prev, key, level) : []),
   ];
   const scored = pool
     .filter((p) => !sameChord(p.chord, prev))
@@ -261,7 +277,7 @@ export function suggestNext(prev, key, level = 3, count = 8) {
   return unique.map((p) => ({
     chord: p.chord,
     strength: Math.max(0.08, p.score / top),
-    reason: namedMotion(prev, p.chord, key) ?? DEFAULT_REASON[chordFunction(p.chord, key)],
+    reason: p.reason ?? namedMotion(prev, p.chord, key) ?? DEFAULT_REASON[chordFunction(p.chord, key)],
   }));
 }
 

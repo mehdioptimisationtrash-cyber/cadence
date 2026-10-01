@@ -4,6 +4,7 @@ import {
   LEVELS, FUNCTIONS, diatonicChords, borrowedChords, secondaryDominants, tritoneSubstitutions, suggestNext,
 } from '../theory/harmony.js';
 import { addChord } from '../actions.js';
+import { slashGroups } from '../theory/slash.js';
 import { toast } from './dom.js';
 
 function chordChip(ctx, chord, { caption = null, strength = null } = {}) {
@@ -66,6 +67,12 @@ export function renderPalette(container, ctx) {
     borrowed.length ? h('details', { class: 'fold', open: true },
       h('summary', {}, 'Emprunts aux modes voisins'),
       h('div', { class: 'fold-body' }, borrowed.slice(0, 4).map((g) => section(g.name, null, h('div', { class: 'chips' }, g.chords.slice(0, 7).map((c) => chordChip(ctx, c))))))) : null,
+    h('details', { class: 'fold', open: true },
+      h('summary', {}, 'Accords sur une autre basse'),
+      h('div', { class: 'fold-body' },
+        h('p', { class: 'panel-sub' }, 'La basse joue une autre note que la fondamentale : lignes de basse qui glissent, suspensions, pédales.'),
+        slashGroups(s.key, s.level).map((grp) => section(grp.title, grp.hint, h('div', { class: 'chips' },
+          grp.chords.map((c) => chordChip(ctx, c, { caption: grp.id === 'colors' ? c.label : null }))))))),
     secondary.length ? h('details', { class: 'fold' },
       h('summary', {}, 'Dominantes secondaires'),
       h('div', { class: 'fold-body' }, h('p', { class: 'panel-sub' }, 'Un accord de tension qui « tire » vers un degré de la gamme.'),

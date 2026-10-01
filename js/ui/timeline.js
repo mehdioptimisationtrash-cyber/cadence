@@ -89,7 +89,7 @@ export function renderTimeline(container, ctx, { onAdd }) {
       },
     },
     h('span', { class: 'card-roman' }, ctx.roman(chord)),
-    h('span', { class: 'card-sym' }, sym(ctx.label(chord))),
+    h('span', { class: `card-sym${ctx.label(chord).length > 6 ? ' is-long' : ''}` }, sym(ctx.label(chord))),
     h('div', { class: 'card-foot' }, h('span', {}, beatsLabel(chord.beats)), grip),
     h('div', { class: 'card-progress' }));
     card.style.setProperty('--w', chord.beats);

@@ -4,6 +4,7 @@ import { QUALITY_LIST, QUALITY_GROUPS, getQuality } from '../theory/chords.js';
 import { FUNCTIONS, chordVariants } from '../theory/harmony.js';
 import { scalePitchClasses } from '../theory/scales.js';
 import { updateChord, removeChord, duplicateChord } from '../actions.js';
+import { inversionsOf } from '../theory/slash.js';
 
 const DURATIONS = [
   { value: 1, label: '1 t' }, { value: 2, label: '2 t' }, { value: 3, label: '3 t' },
@@ -72,13 +73,20 @@ export function renderInspector(container, ctx, { scrim }) {
       iconButton('trash', 'Supprimer', () => ctx.set((st) => removeChord(st, chord.id))),
       iconButton('close', 'Fermer', close)),
     section('Variantes & substitutions', 'toucher pour remplacer', variantChips),
+    section('Basse', 'note la plus grave de l’accord',
+      h('div', { class: 'pills' },
+        h('button', { class: 'pill', 'aria-pressed': String(chord.bass == null), onClick: () => edit({ bass: null }) }, `${ctx.note(chord.root)} · fondamentale`),
+        inversionsOf(chord).slice(0, 4).map((inv) => h('button', {
+          class: 'pill', 'aria-pressed': String(chord.bass === inv.bass), onClick: () => edit({ bass: inv.bass }),
+        }, `${ctx.note(inv.bass)} · ${inv.label.replace(' à la basse', '')}`))),
+      h('div', { class: 'q-group' }, 'Ou n’importe quelle note'),
+      noteButtons(chord.bass, (bass) => edit({ bass: bass === chord.root ? null : bass }), true)),
     section('Durée', null, segmented(DURATIONS, chord.beats, (beats) => edit({ beats }, false), { full: true, label: 'Durée' })),
     section('Renversement', chord.inversion == null ? 'conduite des voix auto' : null,
       segmented(inversions, chord.inversion, (inversion) => edit({ inversion }), { label: 'Renversement' })),
     section('Octave', null, segmented([{ value: -1, label: 'Grave' }, { value: 0, label: 'Normal' }, { value: 1, label: 'Aigu' }], chord.octave ?? 0, (octave) => edit({ octave }), { label: 'Octave' })),
     section('Fondamentale', null, noteButtons(chord.root, (root) => edit({ root, inversion: null }))),
     section('Qualité', null, ...qualities),
-    section('Basse (accord renversé « slash »)', null, noteButtons(chord.bass, (bass) => edit({ bass }), true)),
     h('div', { class: 'btn-row', style: { marginTop: '18px' } },
       h('button', { class: 'btn', onClick: close }, icon('close'), 'Fermer')));
 }

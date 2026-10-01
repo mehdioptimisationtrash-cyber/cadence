@@ -7,6 +7,7 @@ PWA (iPhone + Mac) de composition harmonique façon Scaler / Chord Wizard : prog
 **En ligne :** https://mehdioptimisationtrash-cyber.github.io/cadence/ (repo `mehdioptimisationtrash-cyber/cadence`, GitHub Pages sur `main`).
 
 ## Architecture & fichiers clés
+- `js/theory/slash.js` — accords slash (renversements, couleurs de basse, pédales, basse fluide).
 - `js/theory/` — notes & orthographe (`notes.js`), 19 gammes/modes (`scales.js`), 37 qualités d'accords + détection (`chords.js`), harmonie : accords diatoniques par empilement de tierces, chiffrage romain, fonctions T/SD/D, emprunts, dominantes secondaires, substitutions, suggestions « et ensuite ? » (`harmony.js`), voicings + conduite des voix (`voicing.js`).
 - `js/gen/` — 52 progressions célèbres + générateur par ambiance (`progressions.js`), mélodie motivique (`melody.js`), motifs de jeu accords/basse + swing (`patterns.js`), compilation en notes datées (`arrange.js`).
 - `js/audio/` — instruments synthétisés + réverb (`synth.js`), lecteur à lookahead (`player.js`).
@@ -27,6 +28,7 @@ PWA (iPhone + Mac) de composition harmonique façon Scaler / Chord Wizard : prog
 - 2026-10-01 : son coupé après avoir quitté l'app (v5) : à la sortie (visibilitychange/pagehide) on arrête la lecture et on ferme l'AudioContext (`synth.reset()`), un contexte neuf est recréé au premier toucher. `window.cadenceAudio()` = diagnostic pour les tests.
 - 2026-10-01 : basse modifiable à la main (v6) : `state.bassLine {custom, notes, stale}`, `freezeBass`/`releaseBass`/`setTrackNotes` (actions), barre d'édition au-dessus du piano roll (Mélodie/Basse, durée, aimant), vue zoomée avec noms de notes, glisser pour déplacer.
 - 2026-10-02 : éditeur de notes plein écran (v7, `js/ui/noteEditor.js` + règles pures `js/gen/noteEdit.js`) : glisser = défiler, pincer = zoomer, crayon explicite (ou double-toucher) pour ajouter, toucher = sélectionner, barre d'actions (hauteur, octave, durée, dupliquer, supprimer), annuler/rétablir visibles, aucune superposition. Le mini piano roll redevient une simple vue.
+- 2026-10-02 : accords sur une autre basse (v8, `js/theory/slash.js`) : section palette (couleurs de basse, renversements, pédale), suggestions à basse conjointe, variantes + choix rapide de basse dans l'inspecteur, curseur « Basse fluide » du générateur (programmation dynamique), 8 progressions « Basses mobiles », chiffrage romain avec basse (IV/V).
 
 ## TODO / idées
 - Retours de Mehdi après essai sur iPhone.

@@ -5,6 +5,7 @@ import { isMinorQuality, isDominantQuality } from '../theory/chords.js';
 import {
   diatonicChord, diatonicChords, transitionTable, borrowedChords, romanToChord,
 } from '../theory/harmony.js';
+import { smoothBassLine } from '../theory/slash.js';
 
 const T = (name, genre, mode, prog, beats) => ({ id: `${genre}:${name}`, name, genre, mode, prog, beats });
 
@@ -62,6 +63,14 @@ export const TEMPLATES = [
   T('Cadence parfaite', 'Classique', 'major', 'I IV V I'),
   T('Marche harmonique', 'Classique', 'major', 'I IV vii° iii vi ii V I'),
   T('Tierce picarde', 'Classique', 'harmonicMinor', 'i iv V I'),
+  T('Canon, basse qui descend', 'Basses mobiles', 'major', 'I V/VII vi iii/V IV I/III ii/IV V'),
+  T('Basse descendante pop', 'Basses mobiles', 'major', 'I V/VII vi I/V IV I/III ii V'),
+  T('Ligne chromatique mineure', 'Basses mobiles', 'minor', 'i imaj7/VII i7/bVII i6/VI'),
+  T('Gospel suspendu', 'Basses mobiles', 'major', 'Imaj7 IV/V Imaj7 IV/V'),
+  T('Soul 9sus', 'Basses mobiles', 'major', 'ii7/V Imaj7 ii7/V vi7'),
+  T('Pédale de tonique', 'Basses mobiles', 'major', 'I IV/I V/I I'),
+  T('Basse qui monte', 'Basses mobiles', 'major', 'I I/III IV V'),
+  T('Ballade mineure', 'Basses mobiles', 'minor', 'i i/bVII bVI V'),
 ];
 
 export const GENRES = [...new Set(TEMPLATES.map((t) => t.genre))];
@@ -165,7 +174,7 @@ function decorate(chords, key, mood, level, audace, rng) {
  * @returns {{ chords: Array<{root:number, quality:string, bass:null, beats:number}>, scale: string }}
  */
 export function generateProgression({
-  key, level = 3, moodId = 'joyeux', length = 4, beatsPerChord = 4, audace = 0.4, startOnTonic = true, adaptScale = false, seed,
+  key, level = 3, moodId = 'joyeux', length = 4, beatsPerChord = 4, audace = 0.4, startOnTonic = true, adaptScale = false, smoothBass = 0, seed,
 }) {
   const rng = makeRng(seed);
   const mood = getMood(moodId);
@@ -183,7 +192,7 @@ export function generateProgression({
   const decorated = decorate(base, k, mood, lvl, audace, rng).map((c) => colorize(c, mood, lvl, rng));
   return {
     scale: scaleId,
-    chords: decorated.map((c) => ({ root: c.root, quality: c.quality, bass: null, beats: c.beats })),
+    chords: smoothBassLine(decorated.map((c) => ({ root: c.root, quality: c.quality, bass: null, beats: c.beats })), smoothBass),
   };
 }
 

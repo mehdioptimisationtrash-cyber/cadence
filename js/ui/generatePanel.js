@@ -22,7 +22,7 @@ export function renderGeneratePanel(container, ctx) {
   const run = () => {
     const result = generateProgression({
       key: s.key, level: s.level, moodId: g.mood, length: g.length, beatsPerChord: g.beatsPerChord,
-      audace: g.audace, startOnTonic: g.startOnTonic, adaptScale: g.adaptScale, seed: Date.now(),
+      audace: g.audace, startOnTonic: g.startOnTonic, adaptScale: g.adaptScale, smoothBass: g.smoothBass, seed: Date.now(),
     });
     ctx.set((st) => withMelody(replaceProgression(st, result.chords, result.scale)));
     const after = ctx.state;
@@ -74,6 +74,7 @@ export function renderGeneratePanel(container, ctx) {
     section('Nombre d’accords', null, segmented(LENGTHS, g.length, (length) => setGen({ length }), { full: true })),
     section('Durée de chaque accord', null, segmented(BEATS, g.beatsPerChord, (beatsPerChord) => setGen({ beatsPerChord }), { full: true })),
     slider({ label: 'Audace harmonique', value: g.audace, ends: ['Sage', 'Aventureux'], onCommit: (audace) => setGen({ audace }) }),
+    slider({ label: 'Basse fluide (renversements)', value: g.smoothBass, ends: ['Fondamentales', 'Pas à pas'], onCommit: (smoothBass) => setGen({ smoothBass }) }),
     h('div', { class: 'section' },
       toggle('Adapter la gamme à l’ambiance', g.adaptScale, (adaptScale) => setGen({ adaptScale }), `ex. Épique → ${getScale(MOODS.find((m) => m.id === 'epique').scale).name.toLowerCase()}`),
       toggle('Commencer sur la tonique', g.startOnTonic, (startOnTonic) => setGen({ startOnTonic })),
