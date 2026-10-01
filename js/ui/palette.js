@@ -3,7 +3,7 @@ import { h, sym, icon, mount, segmented, section, toggle } from './dom.js';
 import {
   LEVELS, FUNCTIONS, diatonicChords, borrowedChords, secondaryDominants, tritoneSubstitutions, suggestNext,
 } from '../theory/harmony.js';
-import { addChord } from '../actions.js';
+import { insertChord, insertionIndex } from '../actions.js';
 import { slashGroups } from '../theory/slash.js';
 import { toast } from './dom.js';
 
@@ -11,7 +11,7 @@ function chordChip(ctx, chord, { caption = null, strength = null } = {}) {
   const fn = ctx.fn(chord);
   const s = ctx.state;
   const add = () => {
-    ctx.set((st) => addChord(st, { root: chord.root, quality: chord.quality, bass: chord.bass ?? null }));
+    ctx.set((st) => insertChord(st, { root: chord.root, quality: chord.quality, bass: chord.bass ?? null }));
     toast(`${ctx.label(chord)} ajouté`);
   };
   return h('div', { class: `chip fn-${fn}` },
@@ -31,14 +31,18 @@ function chordChip(ctx, chord, { caption = null, strength = null } = {}) {
 
 function suggestions(ctx) {
   const s = ctx.state;
-  const ref = s.chords.find((c) => c.id === s.selected) ?? s.chords[s.chords.length - 1] ?? null;
-  const list = suggestNext(ref, s.key, s.level, 6);
-  const insertAt = ref && s.selected ? s.chords.findIndex((c) => c.id === s.selected) + 1 : null;
+  // Référence : l'accord avant la position d'insertion, sinon l'accord sélectionné, sinon le dernier (silences ignorés).
+  const at = insertionIndex(s);
+  const selectedIdx = s.chords.findIndex((c) => c.id === s.selected);
+  const upTo = at != null ? at : selectedIdx >= 0 ? selectedIdx + 1 : s.chords.length;
+  const ref = s.chords.slice(0, upTo).filter((c) => !c.rest).pop() ?? null;
+  const list = suggestNext(ref, s.key, s.level, 7);
+  const insertAt = at == null && selectedIdx >= 0 ? selectedIdx + 1 : null;
   return section(ref ? `Après ${ctx.label(ref)}` : 'Pour commencer', 'les plus naturels d’abord',
     h('div', { class: 'suggest-list' }, list.map((sg) => {
       const fn = ctx.fn(sg.chord);
       const add = () => {
-        ctx.set((st) => addChord(st, sg.chord, insertAt));
+        ctx.set((st) => (insertAt == null ? insertChord(st, sg.chord) : insertChord({ ...st, ui: { ...st.ui, insertAt } }, sg.chord)));
         toast(`${ctx.label(sg.chord)} ajouté`);
       };
       return h('div', { class: `suggest fn-${fn}` },
@@ -46,7 +50,7 @@ function suggestions(ctx) {
         h('span', { class: 's-sym' }, sym(ctx.label(sg.chord))),
         h('div', { class: 's-meta' }, h('div', { class: 's-roman' }, ctx.roman(sg.chord)), h('div', { class: 's-reason' }, sg.reason)),
         h('div', { class: 'row-actions' },
-          h('button', { class: 'icon-btn small', 'aria-label': `Écouter ${ctx.label(sg.chord)}`, onClick: () => ctx.audition(sg.chord, {}) }, icon('ear')),
+          h('button', { class: 'icon-btn small', 'aria-label': `Écouter ${ctx.label(sg.chord)}`, onClick: () => ctx.audition(sg.chord) }, icon('ear')),
           h('button', { class: 'icon-btn small', 'aria-label': `Ajouter ${ctx.label(sg.chord)}`, onClick: add }, icon('plus'))));
     })));
 }

@@ -3,7 +3,7 @@
 import { h, icon, iconButton, mount, sym, toast } from './dom.js';
 import { midiLabel, pc } from '../theory/notes.js';
 import { detectChords } from '../theory/chords.js';
-import { addChord } from '../actions.js';
+import { insertChord } from '../actions.js';
 import { createKeyboard } from './keyboard.js';
 
 const MOBILE_SPAN = 24;
@@ -96,7 +96,7 @@ export function createKeybed(root, ctx, { openTuner }) {
         canAdd ? h('button', {
           class: 'btn primary kb-add',
           onClick: () => {
-            ctx.set((st) => addChord(st, { root: best.root, quality: best.quality, bass: best.bass }));
+            ctx.set((st) => insertChord(st, { root: best.root, quality: best.quality, bass: best.bass }));
             toast(`${ctx.label(best)} ajouté à la progression`);
           },
         }, icon('plus'), 'Ajouter') : null,

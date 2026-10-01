@@ -2,7 +2,7 @@
 import { pc, makeSpeller } from './notes.js';
 import { getScale, isHeptatonic, isMinorScale } from './scales.js';
 import {
-  getQuality, qualityFromIntervals, isMinorQuality, isDominantQuality, chordPitchClasses,
+  getQuality, qualityFromIntervals, isMinorQuality, isDominantQuality, chordPitchClasses, isRest,
 } from './chords.js';
 import { inversionsOf, stepwiseCandidates } from './slash.js';
 
@@ -74,6 +74,7 @@ export function diatonicChords(key, level = 3) {
 }
 
 export function isDiatonic(chord, key) {
+  if (isRest(chord)) return false;
   const set = new Set(getScale(key.scale).iv.map((iv) => pc(key.root + iv)));
   return chordPitchClasses(chord).every((p) => set.has(p)) && (chord.bass == null || set.has(pc(chord.bass)));
 }
@@ -92,6 +93,7 @@ function degreeNumeral(p, key, speller, scale) {
 }
 
 export function romanNumeral(chord, key) {
+  if (isRest(chord)) return '—';
   const scale = getScale(key.scale);
   const speller = makeSpeller(key.root, scale);
   const { degree, acc } = degreeNumeral(chord.root, key, speller, scale);
@@ -106,6 +108,7 @@ const FUNCTION_BY_DEGREE = ['T', 'SD', 'T', 'SD', 'D', 'T', 'D'];
 const FUNCTION_BY_SEMIS = ['T', 'SD', 'SD', 'T', 'T', 'SD', 'D', 'D', 'SD', 'T', 'SD', 'D'];
 
 export function chordFunction(chord, key) {
+  if (isRest(chord)) return 'rest';
   const scale = getScale(key.scale);
   const semis = pc(chord.root - key.root);
   if (isDiatonic(chord, key)) {

@@ -27,6 +27,24 @@ export function renderInspector(container, ctx, { scrim }) {
     ctx.set((st) => updateChord(st, chord.id, patch));
     if (listen) ctx.audition({ ...chord, ...patch });
   };
+  if (chord.rest) {
+    const idx = s.chords.findIndex((c) => c.id === chord.id);
+    mount(container,
+      h('div', { class: 'grabber' }),
+      h('div', { class: 'insp-head' },
+        h('div', { class: 'insp-sym' }, '𝄽 Silence'),
+        h('div', { class: 'insp-meta' }, h('div', { class: 'insp-fn' }, 'Ni accord ni basse pendant ce temps.')),
+        iconButton('copy', 'Dupliquer', () => ctx.set((st) => duplicateChord(st, chord.id))),
+        iconButton('trash', 'Supprimer', () => ctx.set((st) => removeChord(st, chord.id))),
+        iconButton('close', 'Fermer', close)),
+      section('Durée', null, segmented(DURATIONS, chord.beats, (beats) => edit({ beats }, false), { full: true, label: 'Durée' })),
+      h('div', { class: 'btn-row', style: { marginTop: '14px' } },
+        h('button', {
+          class: 'btn primary',
+          onClick: () => ctx.set((st) => ({ ...removeChord(st, chord.id), selected: null, ui: { ...st.ui, insertAt: idx, tab: 'palette' } })),
+        }, icon('plus'), 'Remplacer par un accord')));
+    return;
+  }
   const inScale = new Set(scalePitchClasses(s.key.root, s.key.scale));
   const size = getQuality(chord.quality).iv.length;
   const noteButtons = (value, onPick, withNone = false) => h('div', { class: 'note-grid' },

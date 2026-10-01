@@ -1,6 +1,6 @@
 // Frise de la progression : cartes d'accords, sélection, glisser pour réordonner.
 import { h, sym, icon, iconButton, mount, toast } from './dom.js';
-import { moveChord, clearProgression, transpose } from '../actions.js';
+import { moveChord, clearProgression, transpose, addChord } from '../actions.js';
 import { totalBeats } from '../gen/arrange.js';
 
 const beatsLabel = (b) => (b === 4 ? '1 mes.' : b === 8 ? '2 mes.' : b === 6 ? '1½ mes.' : `${b} t.`);
@@ -64,24 +64,60 @@ function attachDrag(card, grip, index, container, ctx) {
   });
 }
 
-export function renderTimeline(container, ctx, { onAdd }) {
+/**
+ * Point d'insertion entre deux cartes : « + » ouvre le choix Accord / Silence.
+ * Choisir « Accord » place le curseur d'insertion : les accords touchés dans la palette s'ajoutent ici.
+ */
+function slot(ctx, index, { end = false } = {}) {
+  const s = ctx.state;
+  const open = s.ui.slotMenu === index;
+  const active = s.ui.insertAt === index;
+  if (open) {
+    return h('div', { class: `slot-menu${end ? ' is-end' : ''}` },
+      h('button', {
+        class: 'btn primary',
+        onClick: () => ctx.setUi({ slotMenu: null, insertAt: end ? null : index, tab: 'palette' }),
+      }, icon('plus'), 'Accord'),
+      h('button', {
+        class: 'btn',
+        onClick: () => {
+          ctx.set((st) => ({ ...addChord(st, { rest: true, beats: st.generator.beatsPerChord }, index), ui: { ...st.ui, slotMenu: null } }));
+        },
+      }, 'Silence'),
+      iconButton('close', 'Annuler', () => ctx.setUi({ slotMenu: null }), { class: 'small' }));
+  }
+  if (end) {
+    return h('button', { class: 'card-add', 'aria-label': 'Ajouter à la fin', onClick: () => ctx.setUi({ slotMenu: index }) }, icon('plus'));
+  }
+  return h('button', {
+    class: `slot${active ? ' is-active' : ''}`,
+    'aria-label': index === 0 ? 'Insérer au début' : 'Insérer ici',
+    title: 'Insérer un accord ou un silence ici',
+    onClick: () => ctx.setUi({ slotMenu: index }),
+  }, h('span', {}, '+'));
+}
+
+export function renderTimeline(container, ctx) {
   const s = ctx.state;
   if (!s.chords.length) {
     mount(container, h('div', { class: 'empty' },
       h('strong', {}, 'Une page blanche.'),
       'Touche un accord de la palette (+), ou laisse le générateur proposer une progression.'),
-    h('button', { class: 'card-add', 'aria-label': 'Ajouter un accord', onClick: onAdd }, icon('plus')));
+    slot(ctx, 0, { end: true }));
     return;
   }
-  const cards = s.chords.map((chord, i) => {
+  const items = [];
+  s.chords.forEach((chord, i) => {
+    items.push(slot(ctx, i));
     const fn = ctx.fn(chord);
     const grip = h('span', { class: 'card-grip', 'aria-label': 'Glisser pour déplacer' }, icon('grip'));
+    const label = ctx.label(chord);
     const card = h('article', {
-      class: `card fn-${fn}${s.selected === chord.id ? ' is-selected' : ''}`,
+      class: `card fn-${fn}${chord.rest ? ' is-rest' : ''}${s.selected === chord.id ? ' is-selected' : ''}`,
       tabindex: 0,
       role: 'button',
       'data-index': i,
-      'aria-label': `${ctx.label(chord)}, ${beatsLabel(chord.beats)}`,
+      'aria-label': `${label}, ${beatsLabel(chord.beats)}`,
       onClick: () => {
         ctx.set((st) => ({ ...st, selected: st.selected === chord.id ? null : chord.id }), { history: false });
         ctx.audition(chord);
@@ -91,14 +127,28 @@ export function renderTimeline(container, ctx, { onAdd }) {
       },
     },
     h('span', { class: 'card-roman' }, ctx.roman(chord)),
-    h('span', { class: `card-sym${ctx.label(chord).length > 6 ? ' is-long' : ''}` }, sym(ctx.label(chord))),
+    h('span', { class: `card-sym${label.length > 6 ? ' is-long' : ''}` }, chord.rest ? h('span', { class: 'rest-mark' }, '𝄽 ', 'Silence') : sym(label)),
     h('div', { class: 'card-foot' }, h('span', {}, beatsLabel(chord.beats)), grip),
     h('div', { class: 'card-progress' }));
     card.style.setProperty('--w', chord.beats);
     attachDrag(card, grip, i, container, ctx);
-    return card;
+    items.push(card);
   });
-  mount(container, ...cards, h('button', { class: 'card-add', 'aria-label': 'Ajouter un accord', onClick: onAdd }, icon('plus')));
+  items.push(slot(ctx, s.chords.length, { end: true }));
+  mount(container, ...items);
+}
+
+/** Bandeau affiché pendant une insertion au milieu de la progression. */
+export function insertionBanner(ctx) {
+  const s = ctx.state;
+  const at = s.ui.insertAt;
+  if (at == null || at >= s.chords.length) return null;
+  const before = s.chords[at - 1];
+  const after = s.chords[at];
+  const where = before ? `entre ${ctx.label(before)} et ${ctx.label(after)}` : `avant ${ctx.label(after)}`;
+  return h('div', { class: 'insert-banner' },
+    h('span', {}, icon('plus'), ` Ajout ${where} : touche + sur un accord de la palette`),
+    h('button', { class: 'btn', onClick: () => ctx.setUi({ insertAt: null }) }, 'Terminé'));
 }
 
 /** Met en lumière l'accord joué (appelé à chaque image pendant la lecture). */

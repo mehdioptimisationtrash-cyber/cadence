@@ -842,3 +842,31 @@ body.editor-open { overflow: hidden; }
 .tn-chord { margin-top: 12px; padding: 12px; border-radius: var(--radius-m); background: var(--surface); border: 1px solid var(--line); display: grid; gap: 10px; }
 .tn-chord-name { font-family: var(--font-display); font-size: 2.2rem; line-height: 1; }
 .tn-tip { margin-top: 14px; }
+
+/* ---------- Insertion & silences ---------- */
+.fn-rest { --fn: #6f687a; }
+.card.is-rest { background: repeating-linear-gradient(135deg, rgba(255,244,230,0.03) 0 8px, transparent 8px 16px), var(--surface); }
+.card.is-rest .card-sym { font-size: 1.2rem; color: var(--muted); font-family: var(--font-ui); font-weight: 600; }
+.rest-mark { white-space: nowrap; }
+.timeline { gap: 0; align-items: stretch; }
+.slot {
+  flex: none; width: 18px; display: grid; place-items: center; color: transparent; border-radius: 8px;
+  transition: color var(--fast), background var(--fast);
+}
+.slot span { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; font-size: 13px; font-weight: 800; line-height: 1; background: var(--surface-2); color: var(--faint); border: 1px solid var(--line-strong); }
+.slot:hover span, .slot:focus-visible span { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.slot.is-active { width: 26px; }
+.slot.is-active span { width: 4px; height: 90px; border-radius: 4px; background: var(--accent); color: transparent; box-shadow: 0 0 14px rgba(255,181,71,0.7); border: 0; }
+@media (pointer: coarse) { .slot { width: 24px; } .slot span { width: 22px; height: 22px; } }
+.slot-menu { flex: none; display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 0 6px; }
+.slot-menu.is-end { flex-direction: row; align-items: center; }
+.slot-menu .btn { padding: 8px 12px; }
+.card-add { margin-left: 6px; }
+.insert-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  padding: 9px 12px; border-radius: 12px; background: var(--accent-soft); border: 1px solid rgba(255,181,71,0.35); font-size: var(--text-sm);
+}
+.insert-banner svg.icon { width: 15px; height: 15px; vertical-align: -2px; }
+#insert-banner:empty { display: none; }
+
+.ne-warn { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 8px 10px; border-radius: 10px; background: rgba(255,107,90,0.12); border: 1px solid rgba(255,107,90,0.4); font-size: var(--text-sm); }

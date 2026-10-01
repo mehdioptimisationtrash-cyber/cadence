@@ -42,14 +42,17 @@ export function createContext({ store, player, synth, midiOut }) {
     label: (chord, state = store.get()) => chordSymbol(chord, getSpeller(state.key), state.notation),
     roman: (chord, state = store.get()) => romanNumeral(chord, state.key),
     fn: (chord, state = store.get()) => chordFunction(chord, state.key),
+    isRest: (chord) => Boolean(chord?.rest),
     keyName(state = store.get()) {
       const scale = getScale(state.key.scale);
       return `${ctx.note(state.key.root, state)} ${scale.name.toLowerCase()}`;
     },
     /** Joue un accord tout de suite et l'allume sur le clavier. */
-    audition(chord, { prev = null } = {}) {
+    audition(chord) {
       const state = store.get();
-      const notes = voiceChord(chord, { style: state.arrangement.voicing, prev });
+      if (chord.rest) return;
+      // Même disposition qu'en lecture : ce qu'on entend en touchant une carte = ce que joue « Lecture ».
+      const notes = voiceChord(chord, { style: state.arrangement.voicing });
       const bass = state.arrangement.bassPattern === 'off' ? null : bassNote(chord);
       player.state = player.state ?? state;
       player.audition(notes, { bass });

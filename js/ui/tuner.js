@@ -3,7 +3,7 @@
 import { h, icon, iconButton, mount, sym, toggle, toast } from './dom.js';
 import { midiLabel, pc } from '../theory/notes.js';
 import { detectChords } from '../theory/chords.js';
-import { addChord } from '../actions.js';
+import { insertChord } from '../actions.js';
 import { createPitchTracker, foldIntoRange } from '../audio/pitch.js';
 
 const IN_TUNE_CENTS = 20;
@@ -81,7 +81,7 @@ export function createTuner(root, scrim, ctx, { addNote }) {
           best ? h('button', {
             class: 'btn primary',
             onClick: () => {
-              ctx.set((st) => addChord(st, { root: best.root, quality: best.quality, bass: best.bass }));
+              ctx.set((st) => insertChord(st, { root: best.root, quality: best.quality, bass: best.bass }));
               toast(`${ctx.label(best)} ajouté à la progression`);
             },
           }, icon('plus'), 'Ajouter à la progression') : null,

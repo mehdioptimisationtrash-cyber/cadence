@@ -5,7 +5,7 @@ import { h, icon, iconButton, segmented, mount } from './dom.js';
 import { pc, midiLabel, isBlackKey } from '../theory/notes.js';
 import { scalePitchClasses } from '../theory/scales.js';
 import { chordPitchClasses } from '../theory/chords.js';
-import { chordStarts, totalBeats } from '../gen/arrange.js';
+import { arrange, chordStarts, totalBeats } from '../gen/arrange.js';
 import { trackNotes, setTrackNotes } from '../actions.js';
 import {
   placeNote, updateNote, removeNote, duplicateNote, stepPitch, snapBeat, floorBeat, findNote, sameNote,
@@ -17,7 +17,7 @@ const RULER_H = 34;
 const MOVE_PX = 7;
 const DOUBLE_TAP_MS = 320;
 const GRIDS = [{ value: 1, label: '1/4' }, { value: 0.5, label: '1/8' }, { value: 0.25, label: '1/16' }];
-const FN_COLOR = { T: '#5fd3b0', SD: '#f2c14e', D: '#ff6b5a', sec: '#ff7ab8', borrow: '#a78bfa' };
+const FN_COLOR = { T: '#5fd3b0', SD: '#f2c14e', D: '#ff6b5a', sec: '#ff7ab8', borrow: '#a78bfa', rest: '#6f687a' };
 const TRACK_COLOR = { melody: '#7ee3ff', bass: '#ffb547' };
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
@@ -50,6 +50,11 @@ export function createNoteEditor(root, ctx) {
   const end = () => Math.max(1, totalBeats(state().chords));
   const notes = () => preview ?? trackNotes(state(), openTrack);
   const scalePcs = () => scalePitchClasses(state().key.root, state().key.scale);
+  // La piste éditée est-elle réellement entendue ?
+  const silent = () => {
+    const s = state();
+    return s.arrangement.muted[openTrack] || (openTrack === 'melody' && !s.melody.enabled);
+  };
 
   function rows() {
     const [lo, hi] = RANGES[openTrack];
@@ -157,11 +162,11 @@ export function createNoteEditor(root, ctx) {
     g.fillStyle = 'rgba(0,0,0,0.45)';
     g.fillRect(x(total), RULER_H, w, hgt);
 
-    // Repère : l'autre piste en fantôme.
+    // Repère : l'autre piste en fantôme, telle qu'elle est réellement jouée (motif de basse compris).
     const other = openTrack === 'melody' ? 'bass' : 'melody';
     g.globalAlpha = 0.22;
     g.fillStyle = TRACK_COLOR[other];
-    trackNotes(s, other).forEach((n) => {
+    arrange(s).filter((e) => e.track === other).forEach((n) => {
       const r = rowOf(n.midi);
       if (rowCache[r] !== n.midi && fold() && Math.abs(rowCache[r] - n.midi) > 2) return;
       rounded(x(n.start), y(r) + view.rowH * 0.3, n.dur * view.beatW, view.rowH * 0.4, 3);
@@ -181,9 +186,13 @@ export function createNoteEditor(root, ctx) {
       const isSel = sameNote(n, selected);
       const ny = y(r) + 2;
       const nh = view.rowH - 4;
+      // Au-delà de la fin de la progression : affichée en pointillés, car elle ne sera pas jouée.
+      const beyond = n.start >= total;
+      g.globalAlpha = beyond || silent() ? 0.35 : 1;
       g.fillStyle = isSel ? '#ffffff' : color;
-      rounded(nx + 1, ny, nw, nh, Math.min(7, nh / 2));
+      rounded(nx + 1, ny, Math.max(6, Math.min(n.dur, Math.max(0.125, total - n.start)) * view.beatW - 2), nh, Math.min(7, nh / 2));
       g.fill();
+      g.globalAlpha = 1;
       if (nw > 34 && nh > 14) {
         g.fillStyle = '#0d0b11';
         g.fillText(midiLabel(n.midi, s.notation), nx + 8, ny + nh / 2, nw - 14);
@@ -504,6 +513,18 @@ export function createNoteEditor(root, ctx) {
         h('div', { class: 'ne-zoom' },
           iconButton('minus', 'Dézoomer', () => { const { w, hgt } = size(); zoomAt(w / 2, hgt / 2, 0.8, 0.88); }, { class: 'small' }),
           iconButton('plus', 'Zoomer', () => { const { w, hgt } = size(); zoomAt(w / 2, hgt / 2, 1.25, 1.14); }, { class: 'small' }))));
+    if (silent()) {
+      toolbar.append(h('div', { class: 'ne-warn' },
+        h('span', {}, openTrack === 'melody' && !s.melody.enabled ? 'La mélodie est désactivée : elle ne sera pas jouée.' : 'Cette piste est coupée : elle ne sera pas jouée.'),
+        h('button', {
+          class: 'btn primary',
+          onClick: () => ctx.set((st) => ({
+            ...st,
+            melody: openTrack === 'melody' ? { ...st.melody, enabled: true } : st.melody,
+            arrangement: { ...st.arrangement, muted: { ...st.arrangement.muted, [openTrack]: false } },
+          }), { history: false }),
+        }, 'Réactiver')));
+    }
     hint.textContent = trackNotes(s, openTrack).length === 0
       ? (pencil() ? 'Touche la grille pour poser une note.' : 'Active le crayon (ou touche deux fois la grille) pour poser une note.')
       : '';

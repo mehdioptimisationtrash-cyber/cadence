@@ -3,7 +3,7 @@ import { pc, makeRng } from '../theory/notes.js';
 import { getScale, isHeptatonic, isMinorScale } from '../theory/scales.js';
 import { isMinorQuality, isDominantQuality } from '../theory/chords.js';
 import {
-  diatonicChord, diatonicChords, transitionTable, borrowedChords, romanToChord,
+  diatonicChord, diatonicChords, transitionTable, borrowedChords, romanToChord, suggestNext,
 } from '../theory/harmony.js';
 import { smoothBassLine } from '../theory/slash.js';
 
@@ -190,6 +190,14 @@ export function generateProgression({
       .map((c) => ({ ...c, beats: beatsPerChord }));
   }
   const decorated = decorate(base, k, mood, lvl, audace, rng).map((c) => colorize(c, mood, lvl, rng));
+  // Jamais deux fois le même accord à la suite : on remplace le doublon par l'enchaînement le plus naturel.
+  const same = (a, b) => a && b && a.root === b.root && a.quality === b.quality && (a.bass ?? null) === (b.bass ?? null);
+  for (let i = 1; i < decorated.length; i += 1) {
+    if (!same(decorated[i], decorated[i - 1])) continue;
+    const next = decorated[i + 1];
+    const alt = suggestNext(decorated[i - 1], k, lvl, 8).map((x) => x.chord).find((c) => c.bass == null && !same(c, decorated[i - 1]) && !same(c, next));
+    if (alt) decorated[i] = { ...alt, beats: decorated[i].beats };
+  }
   return {
     scale: scaleId,
     chords: smoothBassLine(decorated.map((c) => ({ root: c.root, quality: c.quality, bass: null, beats: c.beats })), smoothBass),

@@ -5,7 +5,7 @@ import { pc } from '../theory/notes.js';
 import { scalePitchClasses } from '../theory/scales.js';
 
 const COLORS = {
-  T: '#5fd3b0', SD: '#f2c14e', D: '#ff6b5a', sec: '#ff7ab8', borrow: '#a78bfa',
+  T: '#5fd3b0', SD: '#f2c14e', D: '#ff6b5a', sec: '#ff7ab8', borrow: '#a78bfa', rest: '#6f687a',
   melody: '#7ee3ff', bass: '#ffb547', grid: 'rgba(255,244,230,0.06)', bar: 'rgba(255,244,230,0.14)', text: 'rgba(244,237,227,0.75)',
 };
 const MIN_BEAT_PX = 26;

@@ -1,9 +1,9 @@
 // Disposition des notes (voicings) et conduite des voix.
 import { pc } from './notes.js';
-import { getQuality } from './chords.js';
+import { getQuality, isRest } from './chords.js';
 
 export const VOICINGS = [
-  { id: 'auto', label: 'Auto', hint: 'conduite des voix fluide' },
+  { id: 'auto', label: 'Auto', hint: 'renversement le plus proche du centre du clavier' },
   { id: 'close', label: 'Serré', hint: 'position fondamentale' },
   { id: 'open', label: 'Ouvert', hint: 'large, orchestral' },
   { id: 'drop2', label: 'Drop 2', hint: 'jazz, guitare' },
@@ -45,11 +45,6 @@ function applyStyle(style, notes, chord) {
   return sorted;
 }
 
-function distance(a, b) {
-  const near = (n, list) => Math.min(...list.map((m) => Math.abs(n - m)));
-  return (a.reduce((s, n) => s + near(n, b), 0) + b.reduce((s, n) => s + near(n, a), 0)) / 2;
-}
-
 const average = (list) => list.reduce((s, n) => s + n, 0) / list.length;
 const inRange = (v) => v[0] >= LOW && v[v.length - 1] <= HIGH;
 
@@ -72,8 +67,9 @@ function withBass(notes, chord) {
   return sortAsc([below, ...notes.filter((n) => pc(n) !== pc(chord.bass) || n > below + 12)]);
 }
 
-/** Voicing d'un accord, éventuellement lié au précédent pour minimiser les mouvements. */
-export function voiceChord(chord, { style = 'auto', prev = null } = {}) {
+/** Disposition d'un accord (identique en lecture et à l'écoute). */
+export function voiceChord(chord, { style = 'auto' } = {}) {
+  if (isRest(chord)) return [];
   const shape = style === 'auto' ? 'close' : style;
   const shift = 12 * (chord.octave ?? 0);
   let notes;
@@ -82,23 +78,22 @@ export function voiceChord(chord, { style = 'auto', prev = null } = {}) {
     notes = applyStyle(shape, invert(baseNotes(chord, 0), chord.inversion % size), chord);
   } else {
     const list = candidates(chord, shape);
-    const cost = (c) => (prev && style !== 'close'
-      ? distance(c.notes, prev) + Math.abs(average(c.notes) - CENTER) * 0.15
-      : Math.abs(average(c.notes) - (CENTER - 2)) + c.inversion * (style === 'close' ? 6 : 1.5));
+    const cost = (c) => Math.abs(average(c.notes) - (CENTER - 2)) + c.inversion * (style === 'close' ? 6 : 1.5);
     notes = list.length ? list.reduce((best, c) => (cost(c) < cost(best) ? c : best)).notes : baseNotes(chord, 0);
   }
   return withBass(notes, chord).map((n) => n + shift);
 }
 
+/**
+ * Chaque accord a UNE disposition, calculée pour lui seul autour d'un registre fixe :
+ * il sonne pareil quand on le touche et en lecture, et modifier un accord ne change jamais le son
+ * de ses voisins. Rester dans le même registre donne naturellement des enchaînements fluides.
+ */
 export function voiceProgression(chords, style = 'auto') {
-  let prev = null;
-  return chords.map((chord) => {
-    const notes = voiceChord(chord, { style, prev });
-    prev = notes;
-    return notes;
-  });
+  return chords.map((chord) => voiceChord(chord, { style }));
 }
 
 export function bassNote(chord) {
+  if (isRest(chord)) return null;
   return 36 + pc(chord.bass ?? chord.root);
 }

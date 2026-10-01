@@ -2,7 +2,7 @@
 import {
   DEFAULT_SONG, sanitizeSong, createStore, loadSession, saveSession, songFromHash,
 } from './state.js';
-import { addChord, removeChord } from './actions.js';
+import { insertChord, removeChord } from './actions.js';
 import { diatonicChord } from './theory/harmony.js';
 import { generateMelody } from './gen/melody.js';
 import { Synth } from './audio/synth.js';
@@ -11,7 +11,7 @@ import { MidiOut } from './midi/webmidi.js';
 import { createContext } from './ui/context.js';
 import { h, icon, mount, toast } from './ui/dom.js';
 import { renderTopbar } from './ui/topbar.js';
-import { renderStageHead, renderTimeline, paintPlayhead } from './ui/timeline.js';
+import { renderStageHead, renderTimeline, paintPlayhead, insertionBanner } from './ui/timeline.js';
 import { renderInspector } from './ui/inspector.js';
 import { renderPalette } from './ui/palette.js';
 import { renderGeneratePanel } from './ui/generatePanel.js';
@@ -138,7 +138,8 @@ function render() {
   const state = store.get();
   renderTopbar($('topbar'), ctx, { openKeySheet });
   renderStageHead($('stage-head'), ctx);
-  renderTimeline($('timeline'), ctx, { onAdd: () => ctx.setUi({ tab: 'palette' }) });
+  renderTimeline($('timeline'), ctx);
+  mount($('insert-banner'), insertionBanner(ctx));
   renderInspector($('inspector'), ctx, { scrim: $('scrim') });
   renderTabs(state);
   renderRollHead();
@@ -239,7 +240,7 @@ document.addEventListener('keydown', (e) => {
   } else if (!meta && /^[1-7]$/.test(e.key)) {
     const chord = diatonicChord(state.key, Number(e.key) - 1, state.level);
     if (chord) {
-      ctx.set((s) => addChord(s, chord));
+      ctx.set((s) => insertChord(s, chord));
       ctx.audition(chord);
     }
   } else if ((e.key === 'Backspace' || e.key === 'Delete') && state.selected) {

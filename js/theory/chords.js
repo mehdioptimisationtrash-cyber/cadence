@@ -68,11 +68,16 @@ export const isDominantQuality = (id) => DOMINANT_QUALITIES.has(id);
 // Nombre de « couches » de l'accord : 3 = triade, 4 = septième, 5 = neuvième…
 export const qualityLevel = (id) => Math.max(3, getQuality(id).iv.length);
 
+// Un « silence » dans la progression : { rest: true, beats } — aucune note.
+export const isRest = (chord) => Boolean(chord?.rest);
+
 export function chordPitchClasses(chord) {
+  if (isRest(chord)) return [];
   return getQuality(chord.quality).iv.map((iv) => pc(chord.root + iv));
 }
 
 export function chordSymbol(chord, speller, notation = 'en') {
+  if (isRest(chord)) return 'Silence';
   const base = speller.name(chord.root, notation) + getQuality(chord.quality).sym;
   return chord.bass != null && pc(chord.bass) !== pc(chord.root)
     ? `${base}/${speller.name(chord.bass, notation)}`

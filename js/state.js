@@ -54,6 +54,7 @@ const bool = (v, fallback) => (typeof v === 'boolean' ? v : fallback);
 const ids = (list) => list.map((x) => x.id);
 
 function sanitizeChord(c) {
+  if (c && typeof c === 'object' && c.rest === true) return { id: newId(), rest: true, beats: oneOf(c.beats, [1, 2, 3, 4, 6, 8], 4) };
   if (!c || typeof c !== 'object' || !QUALITIES[c.quality]) return null;
   return {
     id: newId(),

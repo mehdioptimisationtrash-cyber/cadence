@@ -5,12 +5,22 @@ import { qualityLevel } from './theory/chords.js';
 import { diatonicChord, isDiatonic, degreeOf } from './theory/harmony.js';
 import { newId } from './state.js';
 import { patternBassNotes } from './gen/arrange.js';
+import { adaptMelody, adaptBass } from './gen/adapt.js';
 
+// Toute modification de la progression recale la mélodie et la basse écrites sur les nouveaux accords.
 const withChords = (state, chords) => ({
   ...state,
   chords,
-  melody: { ...state.melody, stale: state.melody.notes.length > 0 },
-  bassLine: { ...state.bassLine, stale: Boolean(state.bassLine?.custom) },
+  melody: {
+    ...state.melody,
+    notes: adaptMelody(state.melody.notes, state.chords, chords, state.key),
+    stale: state.melody.notes.length > 0,
+  },
+  bassLine: {
+    ...state.bassLine,
+    notes: state.bassLine?.custom ? adaptBass(state.bassLine.notes, state.chords, chords) : state.bassLine.notes,
+    stale: Boolean(state.bassLine?.custom),
+  },
 });
 
 /** Passe la basse en mode « à la main » en partant de ce que joue le motif actuel. */
@@ -37,7 +47,8 @@ export function setTrackNotes(state, track, notes) {
     : { ...state, melody: { ...state.melody, enabled: true, notes: sorted } };
 }
 
-export function makeChord({ root, quality, bass = null, beats = 4, inversion = null, octave = 0 }) {
+export function makeChord({ root, quality, bass = null, beats = 4, inversion = null, octave = 0, rest = false }) {
+  if (rest) return { id: newId(), rest: true, beats };
   return { id: newId(), root: pc(root), quality, bass: bass == null ? null : pc(bass), beats, inversion, octave };
 }
 
@@ -46,6 +57,16 @@ export function addChord(state, chord, index = null, { select = false } = {}) {
   const at = index == null ? state.chords.length : index;
   const chords = [...state.chords.slice(0, at), item, ...state.chords.slice(at)];
   return { ...withChords(state, chords), selected: select ? item.id : state.selected };
+}
+
+/** Position d'insertion choisie avec un « + » entre deux cartes (sinon : à la fin). */
+export const insertionIndex = (state) => (state.ui?.insertAt == null ? null : Math.min(state.ui.insertAt, state.chords.length));
+
+/** Ajoute à la position d'insertion en cours puis avance le curseur (pour enchaîner plusieurs ajouts). */
+export function insertChord(state, chord) {
+  const at = insertionIndex(state);
+  const next = addChord(state, chord, at);
+  return at == null ? next : { ...next, ui: { ...next.ui, insertAt: at + 1 } };
 }
 
 export function updateChord(state, id, patch) {
@@ -95,7 +116,7 @@ export function transpose(state, semis) {
   return {
     ...state,
     key: { ...state.key, root: pc(state.key.root + semis) },
-    chords: state.chords.map((c) => ({ ...c, root: pc(c.root + semis), bass: c.bass == null ? null : pc(c.bass + semis) })),
+    chords: state.chords.map((c) => (c.rest ? c : { ...c, root: pc(c.root + semis), bass: c.bass == null ? null : pc(c.bass + semis) })),
     melody: { ...state.melody, notes: state.melody.notes.map((n) => shiftNote(n, semis)) },
     bassLine: { ...state.bassLine, notes: state.bassLine.notes.map((n) => shiftNote(n, semis)) },
   };

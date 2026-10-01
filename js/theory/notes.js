@@ -53,18 +53,31 @@ const CHROMATIC_LETTER = { 0: 0, 1: 1, 2: 1, 3: 2, 4: 2, 5: 3, 7: 4, 8: 5, 9: 5,
  */
 export function makeSpeller(root, scale) {
   const parent = pc(root + scale.spell[0]);
-  const rootLetter = (MAJOR_KEY_LETTER[parent] + scale.spell[1]) % 7;
-  const preferFlats = FLAT_MAJOR_KEYS.includes(parent) || accidentalOf(root, rootLetter) < 0;
+  const baseLetter = (MAJOR_KEY_LETTER[parent] + scale.spell[1]) % 7;
+  const letters = scale.letters ?? scale.iv.map((_, i) => i);
+  // Les deux écritures possibles de la tonique (ex. D♯ / E♭) : on garde celle qui donne des lettres
+  // conjointes avec le moins d'altérations, en évitant les doubles dièses/bémols.
+  const options = [0, 1, 6].map((d) => (baseLetter + d) % 7).filter((L) => Math.abs(accidentalOf(root, L)) <= 1);
+  const scored = options.map((rootLetter, order) => {
+    const notes = scale.iv.map((iv, i) => {
+      const letter = (rootLetter + letters[i]) % 7;
+      return { p: pc(root + iv), letter, acc: accidentalOf(root + iv, letter) };
+    });
+    const cost = notes.reduce((s, n) => s + Math.abs(n.acc) + (Math.abs(n.acc) > 1 ? 10 : 0), 0) + order * 0.5;
+    return { rootLetter, notes, cost };
+  });
+  const best = scored.reduce((x, y) => (y.cost < x.cost ? y : x));
+  const { rootLetter } = best;
+  const preferFlats = accidentalOf(root, rootLetter) < 0 || (accidentalOf(root, rootLetter) === 0 && FLAT_MAJOR_KEYS.includes(parent))
+    || best.notes.some((n) => n.acc < 0) && !best.notes.some((n) => n.acc > 0);
   const spellings = new Array(12).fill(null);
+  best.notes.forEach((n) => {
+    if (!spellings[n.p]) spellings[n.p] = Math.abs(n.acc) > 2 ? simpleSpelling(n.p, preferFlats) : { letter: n.letter, acc: n.acc };
+  });
   const place = (pitchClass, letter) => {
     const acc = accidentalOf(pitchClass, letter);
     return Math.abs(acc) > 1 ? simpleSpelling(pitchClass, preferFlats) : { letter, acc };
   };
-  const letters = scale.letters ?? scale.iv.map((_, i) => i);
-  scale.iv.forEach((iv, i) => {
-    const p = pc(root + iv);
-    if (!spellings[p]) spellings[p] = place(p, (rootLetter + letters[i]) % 7);
-  });
   for (let p = 0; p < 12; p += 1) {
     if (spellings[p]) continue;
     const semis = pc(p - root);

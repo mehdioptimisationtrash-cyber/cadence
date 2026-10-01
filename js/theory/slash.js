@@ -99,6 +99,11 @@ export function stepwiseCandidates(prev, key, level = 3) {
  * Le premier et le dernier accord gardent leur fondamentale (repère tonal).
  */
 export function smoothBassLine(chords, amount = 0.6) {
+  if (chords.some((c) => c.rest)) {
+    const played = chords.map((c, i) => (c.rest ? -1 : i)).filter((i) => i >= 0);
+    const smooth = smoothBassLine(played.map((i) => chords[i]), amount);
+    return chords.map((c, i) => (c.rest ? c : smooth[played.indexOf(i)]));
+  }
   if (chords.length < 3 || amount <= 0) return chords;
   const options = chords.map((c, i) => {
     const keepRoot = i === 0 || i === chords.length - 1 || c.bass != null;

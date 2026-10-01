@@ -3,6 +3,7 @@
 import { pc, makeRng } from '../theory/notes.js';
 import { getScale, isHeptatonic, isMinorScale } from '../theory/scales.js';
 import { chordPitchClasses } from '../theory/chords.js';
+import { allowedPitchClasses } from './adapt.js';
 
 export const MELODY_STYLES = [
   { id: 'chant', label: 'Chantée', hint: 'lyrique, par degrés' },
@@ -88,8 +89,17 @@ export function generateMelody({ chords, key, params = {}, seed }) {
   const range = (REGISTERS.find((r) => r.id === register) ?? REGISTERS[1]).range;
   const pool = pitchPool(key, style, range);
   let t0 = 0;
+  // Réservoir de notes propre à chaque accord : ses notes + les notes de la gamme qui ne frottent pas
+  // contre elles (ex. sur un Fm emprunté en do majeur, le la naturel est remplacé par le la bémol).
+  const poolFor = (c) => {
+    const allowed = new Set(allowedPitchClasses(c, key));
+    const tones = new Set(chordPitchClasses(c));
+    const list = new Set(pool.filter((m) => allowed.has(pc(m))));
+    for (let m = range[0]; m <= range[1]; m += 1) if (tones.has(pc(m))) list.add(m);
+    return [...list].sort((a, b) => a - b);
+  };
   const timeline = chords.map((c) => {
-    const item = { ...c, start: t0, pcs: chordPitchClasses(c) };
+    const item = { ...c, start: t0, pcs: chordPitchClasses(c), pool: c.rest ? pool : poolFor(c) };
     t0 += c.beats;
     return item;
   });
@@ -125,12 +135,15 @@ export function generateMelody({ chords, key, params = {}, seed }) {
       if (start >= total) return;
       const dur = Math.min((n.len * 4) / slots, total - start) * 0.94;
       const chord = chordAt(timeline, start);
+      if (chord.rest) return; // silence dans la progression : la mélodie se tait aussi
+      const pool = chord.pool;
       const arc = Math.sin(Math.PI * ((bar % 2) * 4 + (n.slot * 4) / slots) / 8);
       const target = center - 3 + arc * (range[1] - range[0]) * 0.3;
       let midi;
       const finalNote = lastOfPhrase && idx === cell.length - 1;
       if (finalNote) {
-        const goal = bar === bars - 1 ? [pc(key.root)] : [chord.pcs[0], chord.pcs[1]];
+        // Fin de morceau : la tonique seulement si l'accord la contient (sinon frottement sur un V, par ex.).
+        const goal = bar === bars - 1 && chord.pcs.includes(pc(key.root)) ? [pc(key.root)] : [chord.pcs[0], chord.pcs[1]];
         midi = chordToneNear(pool, goal, prev, prev, rng);
       } else if (reuse && motif[idx] != null) {
         const anchor = chordToneNear(pool, chord.pcs, motif.first, prev, rng);
