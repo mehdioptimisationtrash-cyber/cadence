@@ -74,3 +74,20 @@ test('undo does not revert settings kept out of history', () => {
   assert.equal(store.get().chords.length, 4);
   assert.equal(store.get().notation, 'fr');
 });
+
+test('bass line can be frozen, edited by hand and released', async () => {
+  const { freezeBass, releaseBass, setTrackNotes, trackNotes, transpose: tr } = await import('../js/actions.js');
+  const s = fresh();
+  const frozen = freezeBass(s);
+  assert.equal(frozen.bassLine.custom, true);
+  assert.ok(frozen.bassLine.notes.length >= 4);
+  const edited = setTrackNotes(frozen, 'bass', [{ midi: 30, start: 0, dur: 1, vel: 0.8 }]);
+  const bass = arrange(edited).filter((e) => e.track === 'bass');
+  assert.deepEqual(bass.map((e) => e.midi), [30]);
+  assert.equal(trackNotes(tr(edited, 2), 'bass')[0].midi, 32);
+  assert.equal(addChord(edited, { root: 0, quality: 'maj' }).bassLine.stale, true);
+  const back = releaseBass(edited, 'pump');
+  assert.equal(back.bassLine.custom, false);
+  assert.ok(arrange(back).filter((e) => e.track === 'bass').length > 8);
+  assert.equal(sanitizeSong({ ...edited }).bassLine.notes.length, 1);
+});

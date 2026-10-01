@@ -25,6 +25,7 @@ PWA (iPhone + Mac) de composition harmonique façon Scaler / Chord Wizard : prog
 - 2026-10-01 : roue des quintes à l'écoute (v2) ; export MIDI repensé (v3) : choix du contenu, Partager (AirDrop/Fichiers) sur iPhone, tuile glisser-déposer vers le DAW (Chrome/Edge uniquement — Safari ne le permet pas).
 - 2026-10-01 : décrochages audio iPhone (v4) : horloge dans un worker (`js/audio/clock-worker.js`), réserve audio « playback » sur tactile, programmation 0,5 s à l'avance, notes en retard jouées au lieu d'être sautées, relance après interruption iOS, plafond de voix. Mesuré : charge audio ~3-4 % sur Mac, aucun décrochage simulé — la cause exacte sur iPhone reste à confirmer par Mehdi.
 - 2026-10-01 : son coupé après avoir quitté l'app (v5) : à la sortie (visibilitychange/pagehide) on arrête la lecture et on ferme l'AudioContext (`synth.reset()`), un contexte neuf est recréé au premier toucher. `window.cadenceAudio()` = diagnostic pour les tests.
+- 2026-10-01 : basse modifiable à la main (v6) : `state.bassLine {custom, notes, stale}`, `freezeBass`/`releaseBass`/`setTrackNotes` (actions), barre d'édition au-dessus du piano roll (Mélodie/Basse, durée, aimant), vue zoomée avec noms de notes, glisser pour déplacer.
 
 ## TODO / idées
 - Retours de Mehdi après essai sur iPhone.

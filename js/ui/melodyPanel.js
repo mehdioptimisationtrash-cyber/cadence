@@ -3,8 +3,6 @@ import { h, icon, mount, pills, segmented, section, slider, toggle, toast } from
 import { MELODY_STYLES, REGISTERS, generateMelody, revoiceMelody } from '../gen/melody.js';
 import { INSTRUMENTS } from '../audio/synth.js';
 
-const NOTE_LENGTHS = [{ value: 0.5, label: '♪ croche' }, { value: 1, label: '♩ noire' }, { value: 2, label: '𝅗𝅥 blanche' }];
-
 export function renderMelodyPanel(container, ctx) {
   const s = ctx.state;
   const m = s.melody;
@@ -22,7 +20,6 @@ export function renderMelodyPanel(container, ctx) {
   };
   const revoice = () => setNotes(revoiceMelody(m.notes, { chords: s.chords, key: s.key, params: m.params, seed: Date.now() }), 'Mêmes rythmes, autres notes');
   const shift = (semis) => setNotes(m.notes.map((n) => ({ ...n, midi: Math.max(36, Math.min(96, n.midi + semis)) })));
-  const editing = Boolean(s.ui.editMelody);
 
   mount(container,
     h('h2', { class: 'panel-title' }, 'Mélodie'),
@@ -41,11 +38,9 @@ export function renderMelodyPanel(container, ctx) {
       h('button', { class: 'btn', onClick: () => shift(-12) }, 'Octave −'),
       h('button', { class: 'btn', onClick: () => shift(12) }, 'Octave +'),
       h('button', { class: 'btn danger', onClick: () => setNotes([], 'Mélodie effacée') }, icon('trash'), 'Effacer')) : null,
-    section('Édition au doigt', `${m.notes.length} notes`,
-      toggle('Modifier dans le piano roll', editing, (editMelody) => ctx.setUi({ editMelody }), 'toucher une note la supprime, toucher le vide en ajoute une'),
-      editing ? h('div', { class: 'field' }, h('div', { class: 'field-row' }, h('span', {}, 'Durée des notes ajoutées')),
-        segmented(NOTE_LENGTHS, s.ui.noteLength ?? 0.5, (noteLength) => ctx.setUi({ noteLength }), { full: true })) : null,
-      editing ? toggle('Aimant de gamme', s.ui.snapScale !== false, (snapScale) => ctx.setUi({ snapScale }), 'les notes ajoutées restent dans la gamme') : null),
+    section('À la main', `${m.notes.length} notes`,
+      h('button', { class: 'btn', onClick: () => ctx.startEdit(s.ui.editTrack === 'melody' ? null : 'melody') }, icon('edit'),
+        s.ui.editTrack === 'melody' ? 'Terminer la modification' : 'Modifier la mélodie note par note')),
     section('Instrument', null, h('select', {
       class: 'select',
       onChange: (e) => ctx.set((st) => ({ ...st, arrangement: { ...st.arrangement, instruments: { ...st.arrangement.instruments, melody: e.target.value } } }), { history: false }),

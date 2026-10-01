@@ -10,7 +10,7 @@ import { Synth } from './audio/synth.js';
 import { Player } from './audio/player.js';
 import { MidiOut } from './midi/webmidi.js';
 import { createContext } from './ui/context.js';
-import { h, icon, mount, toast } from './ui/dom.js';
+import { h, icon, mount, segmented, toast } from './ui/dom.js';
 import { renderTopbar } from './ui/topbar.js';
 import { renderStageHead, renderTimeline, paintPlayhead } from './ui/timeline.js';
 import { renderInspector } from './ui/inspector.js';
@@ -111,16 +111,36 @@ function renderSheet() {
   if (sheetOpen) renderKeySheet($('keysheet'), ctx, { close: closeKeySheet });
 }
 
+// Durée des notes ajoutées, en temps (les glyphes blanche/ronde n'existent pas dans les polices de l'iPhone).
+const NOTE_LENGTHS = [{ value: 0.5, label: '½ t', title: 'croche' }, { value: 1, label: '1 t', title: 'noire' }, { value: 2, label: '2 t', title: 'blanche' }, { value: 4, label: '4 t', title: 'ronde' }];
+
 function renderRollHead(state) {
+  const track = state.ui.editTrack ?? null;
+  $('roll-wrap').classList.toggle('is-editing', Boolean(track));
+  $('roll-head').classList.toggle('is-editing', Boolean(track));
+  if (!track) {
+    mount($('roll-head'),
+      h('span', { class: 'eyebrow' }, 'Arrangement'),
+      h('div', { class: 'roll-legend' },
+        h('span', {}, h('i', { style: { background: 'var(--fn-T)' } }), 'accords'),
+        h('span', {}, h('i', { style: { background: 'var(--trk-bass)' } }), 'basse'),
+        h('span', {}, h('i', { style: { background: 'var(--trk-melody)' } }), 'mélodie')),
+      h('div', { class: 'spacer' }),
+      h('button', { class: 'pill edit-pill', onClick: () => ctx.startEdit('melody'), title: 'Modifier la mélodie à la main' }, icon('edit'), ' Mélodie'),
+      h('button', { class: 'pill edit-pill', onClick: () => ctx.startEdit('bass'), title: 'Modifier la basse à la main' }, icon('edit'), ' Basse'));
+    return;
+  }
   mount($('roll-head'),
-    h('span', { class: 'eyebrow' }, 'Arrangement'),
-    h('div', { class: 'roll-legend' },
-      h('span', {}, h('i', { style: { background: 'var(--fn-T)' } }), 'accords'),
-      h('span', {}, h('i', { style: { background: 'var(--trk-bass)' } }), 'basse'),
-      h('span', {}, h('i', { style: { background: 'var(--trk-melody)' } }), 'mélodie')),
-    h('div', { class: 'spacer' }),
-    state.ui.editMelody ? h('button', { class: 'pill', 'aria-pressed': 'true', onClick: () => ctx.setUi({ editMelody: false }) }, icon('edit'), ' Édition') : null);
-  $('roll-wrap').classList.toggle('is-editing', Boolean(state.ui.editMelody));
+    h('div', { class: 'edit-bar' },
+      h('span', { class: 'eyebrow' }, 'Modifier'),
+      segmented([{ value: 'melody', label: 'Mélodie' }, { value: 'bass', label: 'Basse' }], track, (t) => ctx.startEdit(t), { label: 'Piste modifiée' }),
+      segmented(NOTE_LENGTHS, state.ui.noteLength ?? 0.5, (noteLength) => ctx.setUi({ noteLength }), { label: 'Durée des notes ajoutées' }),
+      h('button', {
+        class: 'pill', 'aria-pressed': String(state.ui.snapScale !== false), title: 'Garder les notes dans la gamme',
+        onClick: () => ctx.setUi({ snapScale: state.ui.snapScale === false }),
+      }, 'Aimant gamme'),
+      h('button', { class: 'btn primary', onClick: () => ctx.startEdit(null) }, 'Terminé')),
+    h('p', { class: 'edit-hint' }, 'Touche le vide pour ajouter · touche une note pour l’effacer · fais-la glisser pour la déplacer.'));
 }
 
 const PANELS = {
@@ -237,6 +257,7 @@ document.addEventListener('keydown', (e) => {
     ctx.audition(state.chords[next]);
   } else if (e.key === 'Escape') {
     if (sheetOpen) closeKeySheet();
+    else if (state.ui.editTrack) ctx.startEdit(null);
     else ctx.set((s) => ({ ...s, selected: null }), { history: false });
   }
 });

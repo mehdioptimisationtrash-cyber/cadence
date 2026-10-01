@@ -4,6 +4,7 @@ import { CHORD_PATTERNS, BASS_PATTERNS } from '../gen/patterns.js';
 import { VOICINGS } from '../theory/voicing.js';
 import { INSTRUMENTS } from '../audio/synth.js';
 import { MidiOut } from '../midi/webmidi.js';
+import { releaseBass } from '../actions.js';
 
 const TRACKS = [
   { id: 'chords', label: 'Accords', color: 'var(--fn-T)' },
@@ -60,7 +61,18 @@ export function renderSoundPanel(container, ctx) {
     h('h2', { class: 'panel-title' }, 'Son & jeu'),
     h('p', { class: 'panel-sub' }, 'Comment la progression est jouée : rythme, disposition des notes, basse, instruments.'),
     section('Jeu des accords', null, pills(CHORD_PATTERNS.map((p) => ({ value: p.id, label: p.label })), a.chordPattern, (chordPattern) => setArr({ chordPattern }))),
-    section('Ligne de basse', null, pills(BASS_PATTERNS.map((p) => ({ value: p.id, label: p.label })), a.bassPattern, (bassPattern) => setArr({ bassPattern }))),
+    section('Ligne de basse', s.bassLine.custom ? 'modifiée à la main' : null,
+      pills(BASS_PATTERNS.map((p) => ({ value: p.id, label: p.label })), s.bassLine.custom ? null : a.bassPattern, (bassPattern) => {
+        if (s.bassLine.custom) ctx.set((st) => releaseBass(st, bassPattern));
+        else setArr({ bassPattern });
+      }),
+      s.bassLine.custom
+        ? h('div', { class: 'callout', style: { marginTop: '10px' } },
+          h('span', {}, s.bassLine.stale ? 'Les accords ont changé : ta basse ne les suit plus.' : 'Basse jouée telle que tu l’as écrite.'),
+          h('div', { class: 'btn-row' },
+            h('button', { class: 'btn', onClick: () => ctx.startEdit('bass') }, icon('edit'), 'Modifier'),
+            h('button', { class: 'btn', onClick: () => ctx.set((st) => releaseBass(st)) }, 'Revenir au motif')))
+        : h('button', { class: 'btn', style: { marginTop: '10px' }, onClick: () => ctx.startEdit('bass') }, icon('edit'), 'Modifier la basse note par note')),
     section('Voicing', VOICINGS.find((v) => v.id === a.voicing)?.hint, pills(VOICINGS.map((v) => ({ value: v.id, label: v.label })), a.voicing, (voicing) => setArr({ voicing }))),
     slider({ label: 'Swing', value: a.swing, ends: ['Droit', 'Ternaire'], onCommit: (swing) => setArr({ swing }) }),
     slider({ label: 'Réverbération', value: a.mix.reverb, ends: ['Sec', 'Cathédrale'], onCommit: (reverb) => setArr({ mix: { ...a.mix, reverb } }) }),

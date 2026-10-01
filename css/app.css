@@ -728,3 +728,14 @@ select.select { -webkit-appearance: none; appearance: none; background-image: li
 .drag-tile .drag-icon { display: grid; place-items: center; width: 40px; height: 48px; flex: none; border-radius: 8px; background: var(--accent); color: var(--accent-ink); }
 .drag-tile.is-disabled { border-color: var(--line-strong); background: var(--surface); cursor: default; }
 .drag-tile.is-disabled .drag-icon { background: var(--surface-3); color: var(--muted); }
+
+.stage-head.is-editing { display: block; }
+.edit-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.edit-bar .btn.primary { margin-left: auto; padding: 8px 14px; }
+.edit-bar .seg button { padding: 6px 10px; }
+.edit-hint { margin: 8px 0 0; font-size: var(--text-xs); color: var(--muted); }
+.edit-pill { display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px; font-size: var(--text-xs); }
+.edit-pill svg.icon { width: 14px; height: 14px; }
+.roll-wrap.is-editing { box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent) 50%, transparent); }
+@media (max-width: 520px) { .roll-legend { display: none; } }
+.callout { flex-wrap: wrap; }

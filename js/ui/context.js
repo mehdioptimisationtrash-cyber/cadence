@@ -4,6 +4,7 @@ import { getScale } from '../theory/scales.js';
 import { chordSymbol } from '../theory/chords.js';
 import { romanNumeral, chordFunction } from '../theory/harmony.js';
 import { voiceChord, bassNote } from '../theory/voicing.js';
+import { freezeBass } from '../actions.js';
 
 export function createContext({ store, player, synth, midiOut }) {
   let spellerKey = '';
@@ -29,6 +30,14 @@ export function createContext({ store, player, synth, midiOut }) {
     },
     set: (fn, opts) => store.set(fn, opts),
     setUi: (patch) => store.set((s) => ({ ...s, ui: { ...s.ui, ...patch } }), { history: false }),
+    /** Ouvre l'édition à la main d'une piste ('melody' | 'bass'), ou la ferme (null). */
+    startEdit(track) {
+      store.set((s) => {
+        const next = { ...s, selected: null, ui: { ...s.ui, editTrack: track, noteLength: track === 'bass' ? 1 : 0.5 } };
+        return track === 'bass' ? freezeBass(next) : next;
+      }, { history: false });
+      if (track) requestAnimationFrame(() => document.getElementById('roll-wrap')?.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+    },
     note: (p, state = store.get()) => getSpeller(state.key).name(p, state.notation),
     label: (chord, state = store.get()) => chordSymbol(chord, getSpeller(state.key), state.notation),
     roman: (chord, state = store.get()) => romanNumeral(chord, state.key),

@@ -41,6 +41,7 @@ export const DEFAULT_SONG = {
     notes: [],
     params: { style: 'chant', density: 0.55, register: 'mid', syncopation: 0.25, repetition: 0.6 },
   },
+  bassLine: { custom: false, notes: [] },
   generator: { mood: 'reveur', length: 4, beatsPerChord: 4, audace: 0.4, startOnTonic: true, adaptScale: true },
 };
 
@@ -115,6 +116,10 @@ export function sanitizeSong(raw) {
         repetition: num(p.repetition, 0, 1, 0.6),
       },
     },
+    bassLine: {
+      custom: bool(s.bassLine?.custom, false),
+      notes: (Array.isArray(s.bassLine?.notes) ? s.bassLine.notes : []).slice(0, 1024).map(sanitizeNote).filter(Boolean),
+    },
     generator: {
       mood: oneOf(g.mood, ids(MOODS), d.generator.mood),
       length: oneOf(g.length, [2, 3, 4, 5, 6, 8], 4),
@@ -128,8 +133,8 @@ export function sanitizeSong(raw) {
 
 /** Partie « musique » de l'état (ce qu'on sauvegarde et partage). */
 export function songOf(state) {
-  const { key, tempo, loop, level, notation, chords, arrangement, melody, generator } = state;
-  return { key, tempo, loop, level, notation, chords, arrangement, melody, generator };
+  const { key, tempo, loop, level, notation, chords, arrangement, melody, bassLine, generator } = state;
+  return { key, tempo, loop, level, notation, chords, arrangement, melody, bassLine, generator };
 }
 
 // --- Magasin ---

@@ -224,7 +224,7 @@ const HELP = [
   ['Couleurs', '<b>Vert</b> = tonique (repos), <b>jaune</b> = sous-dominante (élan), <b>rouge</b> = dominante (tension), <b>rose</b> = dominante secondaire, <b>violet</b> = emprunt à un autre mode.'],
   ['Modifier', 'Touche une carte de la progression : durée, renversement, basse, qualité, variantes. Glisse la poignée ⋮⋮ pour réordonner.'],
   ['Générer', 'Dans <b>Générer</b>, choisis une ambiance et lance les dés, ou pars d’une progression célèbre. Change la tonalité en haut : les accords suivent.'],
-  ['Mélodie', 'Dans <b>Mélodie</b>, compose une ligne qui épouse tes accords. Active l’édition au doigt pour retoucher les notes dans le piano roll.'],
+  ['Mélodie', 'Dans <b>Mélodie</b>, compose une ligne qui épouse tes accords. Le bouton ✎ au-dessus du piano roll permet de retoucher la mélodie ou la basse note par note : toucher pour ajouter ou effacer, glisser pour déplacer.'],
   ['Exporter', 'Dans <b>Outils</b> : sur iPhone, « Partager » envoie le fichier MIDI par AirDrop ou dans Fichiers ; sur Mac (Chrome), glisse la tuile directement dans Logic, Ableton, FL Studio…'],
   ['Raccourcis Mac', '<b>Espace</b> lecture · <b>1–7</b> ajoute le degré · <b>⌘Z / ⇧⌘Z</b> annuler / rétablir · <b>Suppr</b> retire l’accord sélectionné · <b>← →</b> sélection.'],
 ];
