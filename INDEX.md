@@ -22,6 +22,7 @@ PWA (iPhone + Mac) de composition harmonique façon Scaler / Chord Wizard : prog
 
 ## Activité récente
 - 2026-10-01 : création complète, revue de code (10 points corrigés), mise en ligne.
+- 2026-10-01 : roue des quintes à l'écoute (v2) ; export MIDI repensé (v3) : choix du contenu, Partager (AirDrop/Fichiers) sur iPhone, tuile glisser-déposer vers le DAW (Chrome/Edge uniquement — Safari ne le permet pas).
 
 ## TODO / idées
 - Retours de Mehdi après essai sur iPhone.

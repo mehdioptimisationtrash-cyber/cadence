@@ -13,42 +13,117 @@ function fileName(ctx, suffix = '') {
   return `cadence-${key}-${s.tempo}bpm${suffix}.mid`.toLowerCase();
 }
 
-async function deliver(bytes, name) {
-  const file = new File([bytes], name, { type: 'audio/midi' });
-  const touch = window.matchMedia('(pointer: coarse)').matches;
-  if (touch && navigator.canShare?.({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file], title: name });
-      return;
-    } catch (err) {
-      if (err?.name === 'AbortError') return;
-    }
+const EXPORTS = [
+  { value: 'all', label: 'Tout', opts: {}, suffix: '', hint: 'accords, basse et mélodie, tels qu’on les entend' },
+  { value: 'block', label: 'Plaqués', opts: { blockChords: true }, suffix: '-plaque', hint: 'accords tenus, faciles à retravailler' },
+  { value: 'melody', label: 'Mélodie', opts: { only: 'melody' }, suffix: '-melodie', hint: 'la mélodie seule' },
+  { value: 'bass', label: 'Basse', opts: { only: 'bass' }, suffix: '-basse', hint: 'la ligne de basse seule' },
+];
+
+const isTouch = () => window.matchMedia('(pointer: coarse)').matches;
+// Le glisser-déposer d'un fichier vers le Finder ou un logiciel n'existe que dans Chrome / Edge.
+const canDragOut = () => Boolean(navigator.userAgentData?.brands?.some((b) => /Chromium/.test(b.brand)));
+
+function midiFile(ctx, kind) {
+  const s = ctx.state;
+  if (!s.chords.length) return null;
+  const choice = EXPORTS.find((e) => e.value === kind) ?? EXPORTS[0];
+  const bytes = midiFromState(s, choice.opts);
+  return { bytes, name: fileName(ctx, choice.suffix) };
+}
+
+const asFile = ({ bytes, name }) => new File([bytes], name, { type: 'audio/midi' });
+
+/** Menu de partage du système : AirDrop, Fichiers, Messages… (iPhone, et Safari sur Mac). */
+async function shareFile(midi) {
+  const file = asFile(midi);
+  if (!navigator.canShare?.({ files: [file] })) return false;
+  try {
+    await navigator.share({ files: [file], title: midi.name });
+  } catch (err) {
+    if (err?.name !== 'AbortError') toast('Partage impossible — essaie « Enregistrer »');
   }
-  const url = URL.createObjectURL(file);
-  const a = h('a', { href: url, download: name });
+  return true;
+}
+
+function downloadFile(midi) {
+  const url = URL.createObjectURL(asFile(midi));
+  const a = h('a', { href: url, download: midi.name });
   document.body.append(a);
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 4000);
-  toast(`${name} exporté`);
+  toast(`${midi.name} enregistré`);
 }
 
-function exportSection(ctx) {
-  const s = ctx.state;
-  const run = (opts, suffix) => {
-    if (!s.chords.length) {
+function toBase64(bytes) {
+  let bin = '';
+  bytes.forEach((b) => { bin += String.fromCharCode(b); });
+  return btoa(bin);
+}
+
+function dragTile(ctx, kind) {
+  const ok = canDragOut();
+  const tile = h('div', {
+    class: `drag-tile${ok ? '' : ' is-disabled'}`,
+    draggable: ok ? 'true' : 'false',
+    role: 'img',
+    'aria-label': 'Fichier MIDI à glisser dans ton logiciel',
+  },
+  h('span', { class: 'drag-icon' }, icon('file')),
+  h('div', {},
+    h('b', {}, ok ? 'Glisse-moi dans Logic, Ableton…' : 'Glisser-déposer : ouvre Cadence dans Chrome'),
+    h('small', {}, ok
+      ? 'ou sur le Bureau pour créer le fichier .mid'
+      : 'Safari ne permet pas de faire glisser un fichier hors de la page. Ici, utilise « Enregistrer » puis glisse le fichier depuis Téléchargements.')));
+  tile.addEventListener('dragstart', (e) => {
+    const midi = midiFile(ctx, kind);
+    if (!midi) {
+      e.preventDefault();
       toast('Rien à exporter pour l’instant');
       return;
     }
-    deliver(midiFromState(s, opts), fileName(ctx, suffix));
+    e.dataTransfer.effectAllowed = 'copy';
+    e.dataTransfer.setData('DownloadURL', `audio/midi:${midi.name}:data:audio/midi;base64,${toBase64(midi.bytes)}`);
+    e.dataTransfer.setData('text/plain', midi.name);
+    tile.classList.add('is-dragging');
+  });
+  tile.addEventListener('dragend', () => tile.classList.remove('is-dragging'));
+  return tile;
+}
+
+function exportSection(ctx) {
+  const kind = ctx.state.ui.exportKind ?? 'all';
+  const choice = EXPORTS.find((e) => e.value === kind) ?? EXPORTS[0];
+  const get = () => {
+    const midi = midiFile(ctx, kind);
+    if (!midi) toast('Rien à exporter pour l’instant');
+    return midi;
   };
-  return section('Exporter en MIDI', 'à glisser dans ton logiciel',
-    h('div', { class: 'btn-row' },
-      h('button', { class: 'btn primary', onClick: () => run({}, '') }, icon('download'), 'Tout, tel qu’on l’entend'),
-      h('button', { class: 'btn', onClick: () => run({ blockChords: true }, '-plaque') }, 'Accords plaqués'),
-      h('button', { class: 'btn', onClick: () => run({ only: 'melody' }, '-melodie') }, 'Mélodie seule'),
-      h('button', { class: 'btn', onClick: () => run({ only: 'bass' }, '-basse') }, 'Basse seule')),
-    h('p', { class: 'panel-sub', style: { marginTop: '8px' } }, 'Une piste par partie (accords, basse, mélodie), tempo inclus. Sur iPhone, le fichier s’ouvre dans le menu de partage (AirDrop vers le Mac, Fichiers…).'));
+  const share = async () => {
+    const midi = get();
+    if (midi && !(await shareFile(midi))) downloadFile(midi);
+  };
+  const save = () => {
+    const midi = get();
+    if (midi) downloadFile(midi);
+  };
+  const canShareFiles = typeof navigator.canShare === 'function';
+  const touch = isTouch();
+  const shareBtn = h('button', { class: `btn${touch ? ' primary big' : ''}`, onClick: share }, icon('share'), touch ? 'Partager · AirDrop, Fichiers…' : 'Partager (AirDrop…)');
+  return section('Exporter en MIDI', choice.hint,
+    segmented(EXPORTS, kind, (exportKind) => ctx.setUi({ exportKind }), { full: true, label: 'Contenu du fichier' }),
+    touch
+      ? h('div', { class: 'export-actions' },
+        shareBtn,
+        h('button', { class: 'btn', onClick: save }, icon('download'), 'Enregistrer dans Fichiers'),
+        h('p', { class: 'panel-sub' }, 'AirDrop envoie le fichier sur ton Mac (il arrive dans Téléchargements) ; « Enregistrer dans Fichiers » le garde sur l’iPhone pour GarageBand, Cubasis…'))
+      : h('div', { class: 'export-actions' },
+        dragTile(ctx, kind),
+        h('div', { class: 'btn-row' },
+          h('button', { class: 'btn primary', onClick: save }, icon('download'), 'Enregistrer le .mid'),
+          canShareFiles ? shareBtn : null)),
+    h('p', { class: 'panel-sub', style: { marginTop: '8px' } }, 'Une piste par partie (accords, basse, mélodie), tempo inclus.'));
 }
 
 function librarySection(ctx, rerender) {
@@ -150,7 +225,7 @@ const HELP = [
   ['Modifier', 'Touche une carte de la progression : durée, renversement, basse, qualité, variantes. Glisse la poignée ⋮⋮ pour réordonner.'],
   ['Générer', 'Dans <b>Générer</b>, choisis une ambiance et lance les dés, ou pars d’une progression célèbre. Change la tonalité en haut : les accords suivent.'],
   ['Mélodie', 'Dans <b>Mélodie</b>, compose une ligne qui épouse tes accords. Active l’édition au doigt pour retoucher les notes dans le piano roll.'],
-  ['Exporter', 'Dans <b>Outils</b>, exporte un fichier MIDI à glisser dans Logic, Ableton, FL Studio, GarageBand…'],
+  ['Exporter', 'Dans <b>Outils</b> : sur iPhone, « Partager » envoie le fichier MIDI par AirDrop ou dans Fichiers ; sur Mac (Chrome), glisse la tuile directement dans Logic, Ableton, FL Studio…'],
   ['Raccourcis Mac', '<b>Espace</b> lecture · <b>1–7</b> ajoute le degré · <b>⌘Z / ⇧⌘Z</b> annuler / rétablir · <b>Suppr</b> retire l’accord sélectionné · <b>← →</b> sélection.'],
 ];
 

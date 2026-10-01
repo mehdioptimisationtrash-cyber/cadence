@@ -717,3 +717,14 @@ select.select { -webkit-appearance: none; appearance: none; background-image: li
 .scale-play { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); background: var(--surface-2); transition: color var(--fast), background var(--fast); }
 .scale-play:hover { color: var(--accent-ink); background: var(--accent); }
 .scale-play svg.icon { width: 14px; height: 14px; }
+
+.export-actions { display: grid; gap: 8px; margin-top: 10px; }
+.export-actions .panel-sub { margin: 2px 0 0; }
+.drag-tile { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: var(--radius-m); border: 1.5px dashed var(--accent); background: linear-gradient(160deg, var(--accent-soft), transparent), var(--surface); cursor: grab; user-select: none; -webkit-user-select: none; transition: transform var(--fast), background var(--fast); }
+.drag-tile:hover { transform: translateY(-1px); }
+.drag-tile:active, .drag-tile.is-dragging { cursor: grabbing; opacity: 0.85; }
+.drag-tile b { display: block; font-size: var(--text-sm); }
+.drag-tile small { display: block; color: var(--muted); font-size: var(--text-xs); margin-top: 2px; }
+.drag-tile .drag-icon { display: grid; place-items: center; width: 40px; height: 48px; flex: none; border-radius: 8px; background: var(--accent); color: var(--accent-ink); }
+.drag-tile.is-disabled { border-color: var(--line-strong); background: var(--surface); cursor: default; }
+.drag-tile.is-disabled .drag-icon { background: var(--surface-3); color: var(--muted); }

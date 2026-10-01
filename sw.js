@@ -1,7 +1,7 @@
 // Service worker : l'app fonctionne hors ligne.
 // Fichiers de l'app : réseau d'abord (mises à jour immédiates), copie locale si hors ligne.
 // À chaque modification du site, augmenter CACHE_VERSION (et APP_VERSION dans js/version.js).
-const CACHE_VERSION = 'cadence-v2';
+const CACHE_VERSION = 'cadence-v3';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'icons/icon.svg', 'icons/icon-180.png', 'icons/icon-512.png',
