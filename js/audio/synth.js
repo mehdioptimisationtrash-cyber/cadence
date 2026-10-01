@@ -364,30 +364,45 @@ export class Synth {
     return this.ctx ? this.ctx.currentTime : 0;
   }
 
-  play(track, instrument, midi, when, dur, vel = 0.7) {
+  /**
+   * Joue une note. choke = { group, token } : au moment où elle démarre, elle étouffe les notes
+   * du même groupe venant d'un autre accord (token différent) ou de même hauteur.
+   * Avec mono: true, elle étouffe tout le groupe (mélodie, basse : une note à la fois).
+   */
+  play(track, instrument, midi, when, dur, vel = 0.7, choke = null) {
     if (!this.ctx) return;
     const voice = VOICES[instrument] ?? VOICES.epiano;
     const t = Math.max(when, this.ctx.currentTime);
+    if (choke) {
+      this.choke((v) => v.group === choke.group && (choke.mono || v.token !== choke.token || v.midi === midi), t);
+    }
     const v = voice(this.ctx, this.buses[track], midiToFreq(midi), t, Math.max(0.05, dur), vel);
     v.nodes.forEach((node) => {
       node.start(t);
       node.stop(v.stop);
     });
-    const entry = { nodes: v.nodes, stop: v.stop, amp: v.amp };
+    const entry = { nodes: v.nodes, stop: v.stop, amp: v.amp, midi, group: choke?.group ?? null, token: choke?.token ?? null };
     this.voices.add(entry);
-    if (this.voices.size > MAX_VOICES) this.steal();
+    if (this.voices.size > MAX_VOICES) this.fade(this.voices.values().next().value, this.ctx.currentTime);
     v.nodes[0].onended = () => this.voices.delete(entry);
   }
 
-  steal() {
-    const oldest = this.voices.values().next().value;
-    if (!oldest) return;
-    const t = this.ctx.currentTime;
-    oldest.amp?.gain.setTargetAtTime(0.0001, t, 0.015);
-    oldest.nodes.forEach((n) => {
-      try { n.stop(t + 0.08); } catch { /* déjà arrêtée */ }
+  /** Éteint en douceur (≈15 ms, sans clic) les voix choisies, à l'instant t. */
+  choke(predicate, t) {
+    [...this.voices].filter(predicate).forEach((v) => this.fade(v, t));
+  }
+
+  fade(voice, t) {
+    if (!voice) return;
+    const gain = voice.amp?.gain;
+    if (gain) {
+      gain.cancelScheduledValues(t);
+      gain.setTargetAtTime(0.0001, t, 0.012);
+    }
+    voice.nodes.forEach((n) => {
+      try { n.stop(t + 0.09); } catch { /* déjà arrêtée */ }
     });
-    this.voices.delete(oldest);
+    this.voices.delete(voice);
   }
 
   /** Coupe immédiatement toutes les notes en cours ou programmées. */

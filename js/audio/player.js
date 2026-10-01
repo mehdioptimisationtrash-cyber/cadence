@@ -151,7 +151,9 @@ export class Player {
 
   trigger(e, when, dur) {
     const { instruments, internalSound } = this.state.arrangement;
-    if (internalSound !== false) this.synth.play(e.track, instruments[e.track], e.midi, when, dur, e.vel);
+    // Un nouvel accord coupe le précédent ; mélodie et basse jouent une note à la fois.
+    const choke = e.track === 'chords' ? { group: 'chords', token: e.chord } : { group: e.track, mono: true };
+    if (internalSound !== false) this.synth.play(e.track, instruments[e.track], e.midi, when, dur, e.vel, choke);
     this.midiOut?.send(e.track, e.midi, e.vel, when - this.synth.now(), dur);
   }
 
@@ -160,12 +162,15 @@ export class Player {
     this.synth.ensure();
     const { instruments, internalSound } = this.state.arrangement;
     const t = this.synth.now() + 0.02;
+    // Chaque écoute (accord ou note seule) coupe la précédente au lieu de s'empiler.
+    this.auditionId = (this.auditionId ?? 0) + 1;
+    const choke = { group: 'audition', token: this.auditionId };
     notes.forEach((m, i) => {
-      if (internalSound !== false) this.synth.play(track, instruments[track], m, t + i * 0.012, dur, 0.68);
+      if (internalSound !== false) this.synth.play(track, instruments[track], m, t + i * 0.012, dur, 0.68, choke);
       this.midiOut?.send(track, m, 0.68, 0.02, dur);
     });
     if (bass != null) {
-      if (internalSound !== false) this.synth.play('bass', instruments.bass, bass, t, dur, 0.7);
+      if (internalSound !== false) this.synth.play('bass', instruments.bass, bass, t, dur, 0.7, choke);
       this.midiOut?.send('bass', bass, 0.7, 0.02, dur);
     }
   }

@@ -29,6 +29,7 @@ PWA (iPhone + Mac) de composition harmonique façon Scaler / Chord Wizard : prog
 - 2026-10-01 : basse modifiable à la main (v6) : `state.bassLine {custom, notes, stale}`, `freezeBass`/`releaseBass`/`setTrackNotes` (actions), barre d'édition au-dessus du piano roll (Mélodie/Basse, durée, aimant), vue zoomée avec noms de notes, glisser pour déplacer.
 - 2026-10-02 : éditeur de notes plein écran (v7, `js/ui/noteEditor.js` + règles pures `js/gen/noteEdit.js`) : glisser = défiler, pincer = zoomer, crayon explicite (ou double-toucher) pour ajouter, toucher = sélectionner, barre d'actions (hauteur, octave, durée, dupliquer, supprimer), annuler/rétablir visibles, aucune superposition. Le mini piano roll redevient une simple vue.
 - 2026-10-02 : accords sur une autre basse (v8, `js/theory/slash.js`) : section palette (couleurs de basse, renversements, pédale), suggestions à basse conjointe, variantes + choix rapide de basse dans l'inspecteur, curseur « Basse fluide » du générateur (programmation dynamique), 8 progressions « Basses mobiles », chiffrage romain avec basse (IV/V).
+- 2026-10-02 : étouffement des voix (v9) : `synth.play(..., choke)` — en lecture un nouvel accord coupe le précédent (token = index d'accord), mélodie et basse monophoniques, chaque écoute (accord ou note) coupe la précédente. Vérifié par rendu hors ligne (résidu 0).
 
 ## TODO / idées
 - Retours de Mehdi après essai sur iPhone.
