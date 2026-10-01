@@ -1,0 +1,170 @@
+// Outils : export MIDI, bibliothèque, partage, détecteur d'accords, réglages, aide.
+import { h, sym, icon, mount, section, segmented, toast } from './dom.js';
+import { midiFromState } from '../midi/export.js';
+import { detectChords } from '../theory/chords.js';
+import { loadLibrary, saveToLibrary, removeFromLibrary, shareUrl, sanitizeSong } from '../state.js';
+import { addChord } from '../actions.js';
+import { createKeyboard } from './keyboard.js';
+import { APP_VERSION } from '../version.js';
+
+function fileName(ctx, suffix = '') {
+  const s = ctx.state;
+  const key = ctx.keyName().replace(/♯/g, 'd').replace(/♭/g, 'b').replace(/\s+/g, '-');
+  return `cadence-${key}-${s.tempo}bpm${suffix}.mid`.toLowerCase();
+}
+
+async function deliver(bytes, name) {
+  const file = new File([bytes], name, { type: 'audio/midi' });
+  const touch = window.matchMedia('(pointer: coarse)').matches;
+  if (touch && navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: name });
+      return;
+    } catch (err) {
+      if (err?.name === 'AbortError') return;
+    }
+  }
+  const url = URL.createObjectURL(file);
+  const a = h('a', { href: url, download: name });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  toast(`${name} exporté`);
+}
+
+function exportSection(ctx) {
+  const s = ctx.state;
+  const run = (opts, suffix) => {
+    if (!s.chords.length) {
+      toast('Rien à exporter pour l’instant');
+      return;
+    }
+    deliver(midiFromState(s, opts), fileName(ctx, suffix));
+  };
+  return section('Exporter en MIDI', 'à glisser dans ton logiciel',
+    h('div', { class: 'btn-row' },
+      h('button', { class: 'btn primary', onClick: () => run({}, '') }, icon('download'), 'Tout, tel qu’on l’entend'),
+      h('button', { class: 'btn', onClick: () => run({ blockChords: true }, '-plaque') }, 'Accords plaqués'),
+      h('button', { class: 'btn', onClick: () => run({ only: 'melody' }, '-melodie') }, 'Mélodie seule'),
+      h('button', { class: 'btn', onClick: () => run({ only: 'bass' }, '-basse') }, 'Basse seule')),
+    h('p', { class: 'panel-sub', style: { marginTop: '8px' } }, 'Une piste par partie (accords, basse, mélodie), tempo inclus. Sur iPhone, le fichier s’ouvre dans le menu de partage (AirDrop vers le Mac, Fichiers…).'));
+}
+
+function librarySection(ctx, rerender) {
+  const items = loadLibrary();
+  const input = h('input', { class: 'text', placeholder: 'Nom de l’idée (ex. Refrain nuit)', maxlength: 80 });
+  const save = () => {
+    const name = input.value.trim() || `${ctx.keyName()} · ${new Date().toLocaleDateString('fr-FR')}`;
+    toast(saveToLibrary(name, ctx.state) ? `« ${name} » sauvegardé` : 'Sauvegarde impossible (stockage plein ?)');
+    rerender();
+  };
+  input.addEventListener('keydown', (e) => e.key === 'Enter' && save());
+  return section('Mes idées', `${items.length} sauvegardées sur cet appareil`,
+    h('div', { style: { display: 'flex', gap: '8px', marginBottom: '10px' } }, input, h('button', { class: 'btn primary', onClick: save }, 'Sauver')),
+    items.map((it) => h('div', { class: 'lib-item' },
+      h('div', {}, h('div', { class: 'lib-name' }, it.name),
+        h('div', { class: 'lib-meta' }, `${it.song.chords.length} accords · ${it.song.tempo} bpm · ${new Date(it.savedAt).toLocaleDateString('fr-FR')}`)),
+      h('div', { class: 'row-actions', style: { display: 'flex', gap: '4px' } },
+        h('button', {
+          class: 'btn',
+          onClick: () => {
+            ctx.player.stop();
+            ctx.set((st) => ({ ...st, ...sanitizeSong(it.song), selected: null }));
+            toast(`« ${it.name} » chargé`);
+          },
+        }, 'Ouvrir'),
+        h('button', {
+          class: 'icon-btn small', 'aria-label': `Supprimer ${it.name}`,
+          onClick: () => {
+            removeFromLibrary(it.id);
+            rerender();
+          },
+        }, icon('trash'))))));
+}
+
+function shareSection(ctx) {
+  const share = async () => {
+    const url = shareUrl(ctx.state);
+    if (navigator.share && window.matchMedia('(pointer: coarse)').matches) {
+      try {
+        await navigator.share({ url, title: 'Ma progression Cadence' });
+        return;
+      } catch (err) {
+        if (err?.name === 'AbortError') return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast('Lien copié');
+    } catch {
+      window.prompt('Copie ce lien :', url);
+    }
+  };
+  return section('Partager', 'le lien contient toute la musique',
+    h('button', { class: 'btn', onClick: share }, icon('share'), 'Lien de partage'));
+}
+
+// Notes choisies dans le détecteur : gardées quand le panneau se redessine.
+const picked = new Set();
+
+function detectorSection(ctx) {
+  const results = h('div', { class: 'chips', style: { marginTop: '10px' } });
+  const kb = h('div', { class: 'keyboard tall' });
+  const keyboard = createKeyboard(kb, {
+    low: 48, high: 76, labels: true,
+    onPress: (m) => {
+      if (picked.has(m)) picked.delete(m);
+      else {
+        picked.add(m);
+        ctx.playNotes([m]);
+      }
+      update();
+    },
+  });
+  function update() {
+    keyboard.light({ pick: [...picked] });
+    const found = detectChords([...picked]);
+    results.replaceChildren(...(picked.size < 2
+      ? [h('span', { class: 'panel-sub' }, 'Touche au moins 2 notes sur le clavier.')]
+      : found.length
+        ? found.map((c) => h('div', { class: `chip fn-${ctx.fn(c)}` },
+          h('button', { class: 'chip-play', onClick: () => ctx.audition(c) }, h('span', { class: 'chip-roman' }, ctx.roman(c)), h('span', { class: 'chip-sym' }, sym(ctx.label(c)))),
+          h('button', {
+            class: 'chip-add', 'aria-label': `Ajouter ${ctx.label(c)}`,
+            onClick: () => {
+              ctx.set((st) => addChord(st, c));
+              toast(`${ctx.label(c)} ajouté`);
+            },
+          }, icon('plus'))))
+        : [h('span', { class: 'panel-sub' }, 'Pas d’accord connu pour ces notes.')]));
+  }
+  update();
+  return section('Détecteur d’accords', 'joue des notes, Cadence nomme l’accord', kb, results,
+    h('button', { class: 'btn ghost', style: { marginTop: '8px' }, onClick: () => { picked.clear(); update(); } }, 'Vider le clavier'));
+}
+
+const HELP = [
+  ['Construire', 'Dans <b>Accords</b>, touche un accord pour l’écouter et + pour l’ajouter. La section « Après… » propose les enchaînements les plus naturels, avec la raison musicale.'],
+  ['Couleurs', '<b>Vert</b> = tonique (repos), <b>jaune</b> = sous-dominante (élan), <b>rouge</b> = dominante (tension), <b>rose</b> = dominante secondaire, <b>violet</b> = emprunt à un autre mode.'],
+  ['Modifier', 'Touche une carte de la progression : durée, renversement, basse, qualité, variantes. Glisse la poignée ⋮⋮ pour réordonner.'],
+  ['Générer', 'Dans <b>Générer</b>, choisis une ambiance et lance les dés, ou pars d’une progression célèbre. Change la tonalité en haut : les accords suivent.'],
+  ['Mélodie', 'Dans <b>Mélodie</b>, compose une ligne qui épouse tes accords. Active l’édition au doigt pour retoucher les notes dans le piano roll.'],
+  ['Exporter', 'Dans <b>Outils</b>, exporte un fichier MIDI à glisser dans Logic, Ableton, FL Studio, GarageBand…'],
+  ['Raccourcis Mac', '<b>Espace</b> lecture · <b>1–7</b> ajoute le degré · <b>⌘Z / ⇧⌘Z</b> annuler / rétablir · <b>Suppr</b> retire l’accord sélectionné · <b>← →</b> sélection.'],
+];
+
+export function renderToolsPanel(container, ctx) {
+  const rerender = () => renderToolsPanel(container, ctx);
+  mount(container,
+    h('h2', { class: 'panel-title' }, 'Outils'),
+    exportSection(ctx),
+    librarySection(ctx, rerender),
+    shareSection(ctx),
+    detectorSection(ctx),
+    section('Nom des notes', null, segmented([{ value: 'en', label: 'C D E' }, { value: 'fr', label: 'Do Ré Mi' }], ctx.state.notation,
+      (notation) => ctx.set((st) => ({ ...st, notation }), { history: false }), { full: true })),
+    h('details', { class: 'fold help' }, h('summary', {}, 'Mode d’emploi'),
+      h('div', { class: 'fold-body' }, HELP.map(([title, text]) => h('p', { html: `<b>${title}.</b> ${text}` })))),
+    h('div', { class: 'version' }, `Cadence · version ${APP_VERSION} · fonctionne hors ligne`));
+}

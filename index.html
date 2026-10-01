@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Cadence</title>
+  <meta name="description" content="Générateur de progressions d'accords, d'harmonies et de mélodies — export MIDI.">
+  <meta name="theme-color" content="#0d0b11">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Cadence">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; media-src 'self' blob:; object-src 'none'; base-uri 'self'">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=Instrument+Serif:ital@0;1&display=swap">
+  <link rel="stylesheet" href="css/app.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar" id="topbar"></header>
+    <aside class="side-left" id="side-left" aria-label="Accords"></aside>
+    <main class="stage" id="stage">
+      <div class="stage-head" id="stage-head"></div>
+      <div class="timeline" id="timeline" aria-label="Progression"></div>
+      <section class="inspector" id="inspector" aria-label="Accord sélectionné"></section>
+      <div class="stage-head" id="roll-head"></div>
+      <div class="roll-wrap" id="roll-wrap"><canvas id="roll"></canvas></div>
+      <div class="keyboard" id="keyboard" aria-hidden="true"></div>
+    </main>
+    <aside class="side-right" id="side-right">
+      <div class="tab-desktop" id="tabs-desktop" role="tablist"></div>
+      <section class="panel in-right" data-panel="palette" id="panel-palette"></section>
+      <section class="panel" data-panel="generate" id="panel-generate"></section>
+      <section class="panel" data-panel="melody" id="panel-melody"></section>
+      <section class="panel" data-panel="sound" id="panel-sound"></section>
+      <section class="panel" data-panel="tools" id="panel-tools"></section>
+    </aside>
+  </div>
+  <nav class="tabbar" id="tabbar" role="tablist" aria-label="Sections"></nav>
+  <div class="scrim" id="scrim"></div>
+  <div class="sheet-scrim" id="sheet-scrim"></div>
+  <section class="sheet" id="keysheet" role="dialog" aria-modal="true" aria-label="Tonalité"></section>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <noscript>Cadence a besoin de JavaScript.</noscript>
+</body>
+</html>

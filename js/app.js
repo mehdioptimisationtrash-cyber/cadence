@@ -1,0 +1,277 @@
+// Point d'entrée : assemble l'état, l'audio et l'interface.
+import {
+  DEFAULT_SONG, sanitizeSong, createStore, loadSession, saveSession, songFromHash,
+} from './state.js';
+import { addChord, removeChord } from './actions.js';
+import { diatonicChord } from './theory/harmony.js';
+import { scalePitchClasses } from './theory/scales.js';
+import { generateMelody } from './gen/melody.js';
+import { Synth } from './audio/synth.js';
+import { Player } from './audio/player.js';
+import { MidiOut } from './midi/webmidi.js';
+import { createContext } from './ui/context.js';
+import { h, icon, mount, toast } from './ui/dom.js';
+import { renderTopbar } from './ui/topbar.js';
+import { renderStageHead, renderTimeline, paintPlayhead } from './ui/timeline.js';
+import { renderInspector } from './ui/inspector.js';
+import { renderPalette } from './ui/palette.js';
+import { renderGeneratePanel } from './ui/generatePanel.js';
+import { renderMelodyPanel } from './ui/melodyPanel.js';
+import { renderSoundPanel } from './ui/soundPanel.js';
+import { renderToolsPanel } from './ui/toolsPanel.js';
+import { renderKeySheet } from './ui/keysheet.js';
+import { createKeyboard } from './ui/keyboard.js';
+import { createPianoRoll } from './ui/pianoroll.js';
+
+const $ = (id) => document.getElementById(id);
+const desktop = window.matchMedia('(min-width: 1100px)');
+
+const TABS = [
+  { id: 'palette', label: 'Accords', icon: 'palette' },
+  { id: 'generate', label: 'Générer', icon: 'sparkle' },
+  { id: 'melody', label: 'Mélodie', icon: 'melody' },
+  { id: 'sound', label: 'Son', icon: 'sliders' },
+  { id: 'tools', label: 'Outils', icon: 'tools' },
+];
+
+function initialState() {
+  const shared = songFromHash(location.hash);
+  if (shared) history.replaceState(null, '', location.pathname);
+  const session = shared ? null : loadSession();
+  const song = shared ?? session ?? sanitizeSong(DEFAULT_SONG);
+  const fresh = !shared && !session && song.melody.notes.length === 0;
+  const melody = fresh
+    ? { ...song.melody, notes: generateMelody({ chords: song.chords, key: song.key, params: song.melody.params, seed: 11 }) }
+    : song.melody;
+  return {
+    state: {
+      ...song,
+      melody,
+      selected: null,
+      ui: { tab: 'palette', autoMelody: true, tapToAdd: false, keyOptions: { transposeAll: true, adaptMode: true } },
+    },
+    shared: Boolean(shared),
+  };
+}
+
+const { state: start, shared } = initialState();
+const store = createStore(start);
+const synth = new Synth();
+const midiOut = new MidiOut();
+const player = new Player(synth, midiOut);
+player.state = start;
+const ctx = createContext({ store, player, synth, midiOut });
+
+// --- Disposition : palette à gauche sur grand écran, onglet sur téléphone ---
+
+function placePalette() {
+  const palette = $('panel-palette');
+  if (desktop.matches) {
+    $('side-left').append(palette);
+    palette.classList.remove('in-right');
+  } else {
+    $('side-right').insertBefore(palette, $('panel-generate'));
+    palette.classList.add('in-right');
+  }
+}
+
+function activeTab(state) {
+  const tab = state.ui.tab ?? 'palette';
+  return desktop.matches && tab === 'palette' ? 'generate' : tab;
+}
+
+function renderTabs(state) {
+  const current = activeTab(state);
+  const make = (list) => list.map((t) => h('button', {
+    class: 'tab', role: 'tab', 'aria-selected': String(t.id === current),
+    onClick: () => ctx.setUi({ tab: t.id }),
+  }, icon(t.icon), t.label));
+  $('tabbar').replaceChildren(...make(TABS));
+  $('tabs-desktop').replaceChildren(...make(TABS.filter((t) => t.id !== 'palette')));
+  document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('is-active', p.dataset.panel === current));
+}
+
+// --- Rendu ---
+
+const keyboard = createKeyboard($('keyboard'), { low: 36, high: 84 });
+const roll = createPianoRoll($('roll'), $('roll-wrap'), ctx);
+let sheetOpen = false;
+
+function openKeySheet() {
+  sheetOpen = true;
+  renderSheet();
+}
+function closeKeySheet() {
+  sheetOpen = false;
+  renderSheet();
+}
+function renderSheet() {
+  $('keysheet').classList.toggle('is-open', sheetOpen);
+  $('sheet-scrim').classList.toggle('is-open', sheetOpen);
+  if (sheetOpen) renderKeySheet($('keysheet'), ctx, { close: closeKeySheet });
+}
+
+function renderRollHead(state) {
+  mount($('roll-head'),
+    h('span', { class: 'eyebrow' }, 'Arrangement'),
+    h('div', { class: 'roll-legend' },
+      h('span', {}, h('i', { style: { background: 'var(--fn-T)' } }), 'accords'),
+      h('span', {}, h('i', { style: { background: 'var(--trk-bass)' } }), 'basse'),
+      h('span', {}, h('i', { style: { background: 'var(--trk-melody)' } }), 'mélodie')),
+    h('div', { class: 'spacer' }),
+    state.ui.editMelody ? h('button', { class: 'pill', 'aria-pressed': 'true', onClick: () => ctx.setUi({ editMelody: false }) }, icon('edit'), ' Édition') : null);
+  $('roll-wrap').classList.toggle('is-editing', Boolean(state.ui.editMelody));
+}
+
+const PANELS = {
+  palette: renderPalette,
+  generate: renderGeneratePanel,
+  melody: renderMelodyPanel,
+  sound: renderSoundPanel,
+  tools: renderToolsPanel,
+};
+
+function render() {
+  const state = store.get();
+  renderTopbar($('topbar'), ctx, { openKeySheet });
+  renderStageHead($('stage-head'), ctx);
+  renderTimeline($('timeline'), ctx, { onAdd: () => ctx.setUi({ tab: 'palette' }) });
+  renderInspector($('inspector'), ctx, { scrim: $('scrim') });
+  renderTabs(state);
+  renderRollHead(state);
+  const visible = new Set([activeTab(state)]);
+  if (desktop.matches) visible.add('palette');
+  visible.forEach((id) => PANELS[id]($(`panel-${id}`), ctx));
+  keyboard.setScale(state.key.root, scalePitchClasses(state.key.root, state.key.scale));
+  roll.refresh();
+  renderSheet();
+}
+
+let renderQueued = false;
+function scheduleRender() {
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => {
+    renderQueued = false;
+    render();
+  });
+}
+
+let saveTimer = null;
+store.subscribe((state, prev) => {
+  if (player.playing && !player.previewing && state !== prev) player.update(state);
+  synth.setMix(state.arrangement.mix, state.arrangement.muted);
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => saveSession(store.get()), 400);
+  scheduleRender();
+});
+
+player.onChange((playing) => {
+  if (!playing && store.get().ui.previewing) ctx.setUi({ previewing: null });
+  scheduleRender();
+});
+
+// --- Animation pendant la lecture : tête de lecture, clavier allumé ---
+
+let flash = { notes: [], until: 0 };
+ctx.onFlash((notes, ms) => {
+  flash = { notes, until: performance.now() + ms };
+});
+
+function frame() {
+  try {
+    paintFrame();
+  } finally {
+    requestAnimationFrame(frame);
+  }
+}
+
+function paintFrame() {
+  const state = store.get();
+  const pos = player.playing ? player.position() : null;
+  const own = pos != null && !player.previewing;
+  paintPlayhead($('timeline'), state.chords, own ? pos : null);
+  if (pos != null) {
+    roll.draw(own ? pos : null);
+    const lit = { chords: [], bass: [], melody: [] };
+    player.events.forEach((e) => {
+      if (pos >= e.start && pos < e.start + e.dur) lit[e.track].push(e.midi);
+    });
+    keyboard.light(lit);
+  } else if (performance.now() < flash.until) {
+    keyboard.light({ chords: flash.notes });
+  } else {
+    keyboard.light({});
+  }
+}
+
+// --- Clavier de l'ordinateur ---
+
+const typing = (el) => el && (['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) || el.isContentEditable);
+
+document.addEventListener('keydown', (e) => {
+  if (typing(e.target)) return;
+  const state = store.get();
+  const meta = e.metaKey || e.ctrlKey;
+  if (e.code === 'Space') {
+    e.preventDefault();
+    player.toggle(state);
+  } else if (meta && e.key.toLowerCase() === 'z') {
+    e.preventDefault();
+    if (e.shiftKey) store.redo();
+    else store.undo();
+  } else if (!meta && /^[1-7]$/.test(e.key)) {
+    const chord = diatonicChord(state.key, Number(e.key) - 1, state.level);
+    if (chord) {
+      ctx.set((s) => addChord(s, chord));
+      ctx.audition(chord);
+    }
+  } else if ((e.key === 'Backspace' || e.key === 'Delete') && state.selected) {
+    e.preventDefault();
+    ctx.set((s) => removeChord(s, s.selected));
+  } else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+    if (!state.chords.length) return;
+    const idx = state.chords.findIndex((c) => c.id === state.selected);
+    const next = e.key === 'ArrowRight' ? Math.min(state.chords.length - 1, idx + 1) : Math.max(0, idx === -1 ? 0 : idx - 1);
+    ctx.set((s) => ({ ...s, selected: s.chords[next].id }), { history: false });
+    ctx.audition(state.chords[next]);
+  } else if (e.key === 'Escape') {
+    if (sheetOpen) closeKeySheet();
+    else ctx.set((s) => ({ ...s, selected: null }), { history: false });
+  }
+});
+
+// --- Démarrage ---
+
+// Débloque l'audio au premier contact (obligatoire sur iPhone).
+const unlock = () => {
+  try {
+    synth.ensure();
+  } catch (err) {
+    toast(err instanceof Error ? err.message : 'Audio indisponible');
+  }
+};
+// iOS ne compte que certains gestes (touchend, click) : on retente à chaque geste tant que l'audio dort.
+['pointerdown', 'touchend', 'click', 'keydown'].forEach((type) => window.addEventListener(type, () => {
+  if (!synth.ctx || synth.ctx.state !== 'running') unlock();
+}, { capture: true, passive: true }));
+
+$('scrim').addEventListener('click', () => ctx.set((s) => ({ ...s, selected: null }), { history: false }));
+$('sheet-scrim').addEventListener('click', closeKeySheet);
+desktop.addEventListener('change', () => {
+  placePalette();
+  render();
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) saveSession(store.get());
+});
+window.addEventListener('pagehide', () => saveSession(store.get()));
+
+placePalette();
+render();
+requestAnimationFrame(frame);
+if (shared) toast('Progression partagée chargée');
+
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
