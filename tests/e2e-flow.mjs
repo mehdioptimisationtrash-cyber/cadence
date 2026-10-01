@@ -68,8 +68,9 @@ await step('key sheet → D minor', async () => {
 });
 await step('tools: export + detector', async () => {
   await page.click('#tabbar .tab:has-text("Outils")');
-  const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 5000 }), page.click('button:has-text("Accords plaqués")')]);
-  console.log('     file:', dl.suggestedFilename());
+  // Sur téléphone, l'export passe par le menu de partage (AirDrop, Fichiers) : on vérifie les boutons.
+  const labels = await page.locator('.export-actions .btn').allTextContents();
+  if (!labels.some((l) => l.includes('AirDrop'))) throw new Error(labels.join());
   for (const m of [60, 64, 67]) await page.dispatchEvent(`#panel-tools .keyboard [data-midi="${m}"]`, 'pointerdown');
   console.log('     detect:', await page.locator('#panel-tools .chips .chip-sym').allTextContents());
   await page.screenshot({ path: `${SP}/m-tools.png` });

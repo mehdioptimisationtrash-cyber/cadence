@@ -26,6 +26,9 @@ export const INSTRUMENTS = {
 };
 
 const TRACKS = ['chords', 'melody', 'bass'];
+const MOBILE = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
+// Garde-fou : au-delà, les notes les plus anciennes s'éteignent en douceur.
+const MAX_VOICES = 96;
 
 function makeImpulse(ctx, seconds = 2.6, decay = 3.2) {
   const rate = ctx.sampleRate;
@@ -73,7 +76,7 @@ const VOICES = {
     car.connect(amp);
     tine.connect(tineGain).connect(amp);
     amp.connect(out);
-    return { nodes: [car, mod, tine], stop: end + 0.5 };
+    return { nodes: [car, mod, tine], stop: end + 0.5, amp };
   },
   piano(ctx, out, f, t, dur, vel) {
     const amp = ctx.createGain();
@@ -93,7 +96,7 @@ const VOICES = {
       return o;
     });
     lp.connect(amp).connect(out);
-    return { nodes, stop: end + 0.4 };
+    return { nodes, stop: end + 0.4, amp };
   },
   pad(ctx, out, f, t, dur, vel) {
     const amp = ctx.createGain();
@@ -109,7 +112,7 @@ const VOICES = {
       return o;
     });
     lp.connect(amp).connect(out);
-    return { nodes, stop: end + 1.6 };
+    return { nodes, stop: end + 1.6, amp };
   },
   strings(ctx, out, f, t, dur, vel) {
     const amp = ctx.createGain();
@@ -129,7 +132,7 @@ const VOICES = {
       return o;
     });
     lp.connect(amp).connect(out);
-    return { nodes: [...nodes, vib], stop: end + 0.9 };
+    return { nodes: [...nodes, vib], stop: end + 0.9, amp };
   },
   organ(ctx, out, f, t, dur, vel) {
     const amp = ctx.createGain();
@@ -143,7 +146,7 @@ const VOICES = {
       return o;
     });
     amp.connect(out);
-    return { nodes, stop: end + 0.2 };
+    return { nodes, stop: end + 0.2, amp };
   },
   pluck(ctx, out, f, t, dur, vel) {
     const amp = ctx.createGain();
@@ -161,7 +164,7 @@ const VOICES = {
     a.connect(lp);
     b.connect(bg).connect(lp);
     lp.connect(amp).connect(out);
-    return { nodes: [a, b], stop: end + 0.3 };
+    return { nodes: [a, b], stop: end + 0.3, amp };
   },
   bell(ctx, out, f, t, dur, vel) {
     const amp = ctx.createGain();
@@ -174,7 +177,7 @@ const VOICES = {
     mg.gain.setTargetAtTime(f * 0.2, t, 0.3);
     mod.connect(mg).connect(car.frequency);
     car.connect(amp).connect(out);
-    return { nodes: [car, mod], stop: end + 0.8 };
+    return { nodes: [car, mod], stop: end + 0.8, amp };
   },
   lead(ctx, out, f, t, dur, vel) {
     const amp = ctx.createGain();
@@ -196,7 +199,7 @@ const VOICES = {
     a.connect(lp);
     b.connect(lp);
     lp.connect(amp).connect(out);
-    return { nodes: [a, b, vib], stop: end + 0.2 };
+    return { nodes: [a, b, vib], stop: end + 0.2, amp };
   },
   flute(ctx, out, f, t, dur, vel) {
     const amp = ctx.createGain();
@@ -215,7 +218,7 @@ const VOICES = {
     a.connect(amp);
     b.connect(bg).connect(amp);
     amp.connect(out);
-    return { nodes: [a, b, vib], stop: end + 0.25 };
+    return { nodes: [a, b, vib], stop: end + 0.25, amp };
   },
   sub(ctx, out, f, t, dur, vel) {
     const amp = ctx.createGain();
@@ -228,7 +231,7 @@ const VOICES = {
     a.connect(amp);
     b.connect(bg).connect(amp);
     amp.connect(out);
-    return { nodes: [a, b], stop: end + 0.15 };
+    return { nodes: [a, b], stop: end + 0.15, amp };
   },
   synthbass(ctx, out, f, t, dur, vel) {
     const amp = ctx.createGain();
@@ -246,7 +249,7 @@ const VOICES = {
     a.connect(lp).connect(amp);
     s.connect(sg).connect(amp);
     amp.connect(out);
-    return { nodes: [a, s], stop: end + 0.12 };
+    return { nodes: [a, s], stop: end + 0.12, amp };
   },
   upright(ctx, out, f, t, dur, vel) {
     const amp = ctx.createGain();
@@ -263,7 +266,7 @@ const VOICES = {
     a.connect(lp);
     b.connect(bg).connect(lp);
     lp.connect(amp).connect(out);
-    return { nodes: [a, b], stop: end + 0.15 };
+    return { nodes: [a, b], stop: end + 0.15, amp };
   },
 };
 
@@ -271,6 +274,7 @@ export class Synth {
   constructor() {
     this.ctx = null;
     this.voices = new Set();
+    this.keepAlive = false;
     this.mix = { chords: 0.8, melody: 0.75, bass: 0.8, reverb: 0.28 };
     this.muted = { chords: false, melody: false, bass: false };
   }
@@ -284,11 +288,25 @@ export class Synth {
       if (navigator.audioSession) {
         try { navigator.audioSession.type = 'playback'; } catch { /* ancien Safari */ }
       }
-      this.ctx = new AC({ latencyHint: 'interactive' });
+      // « playback » : réserve audio plus grande sur iPhone, le son ne saute plus au moindre à-coup.
+      this.ctx = new AC({ latencyHint: MOBILE ? 'playback' : 'interactive' });
       this.build();
+      this.watchInterruptions();
     }
     if (this.ctx.state !== 'running') this.ctx.resume().catch(() => {});
     return this.ctx;
+  }
+
+  /** iOS coupe le son (appel, notification, autre app, Siri) : on relance dès que possible pendant la lecture. */
+  watchInterruptions() {
+    const revive = () => {
+      if (this.keepAlive && this.ctx.state !== 'running') this.ctx.resume().catch(() => {});
+    };
+    this.ctx.addEventListener('statechange', revive);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) revive();
+    });
+    window.addEventListener('focus', revive);
   }
 
   build() {
@@ -345,9 +363,21 @@ export class Synth {
       node.start(t);
       node.stop(v.stop);
     });
-    const entry = { nodes: v.nodes, stop: v.stop };
+    const entry = { nodes: v.nodes, stop: v.stop, amp: v.amp };
     this.voices.add(entry);
+    if (this.voices.size > MAX_VOICES) this.steal();
     v.nodes[0].onended = () => this.voices.delete(entry);
+  }
+
+  steal() {
+    const oldest = this.voices.values().next().value;
+    if (!oldest) return;
+    const t = this.ctx.currentTime;
+    oldest.amp?.gain.setTargetAtTime(0.0001, t, 0.015);
+    oldest.nodes.forEach((n) => {
+      try { n.stop(t + 0.08); } catch { /* déjà arrêtée */ }
+    });
+    this.voices.delete(oldest);
   }
 
   /** Coupe immédiatement toutes les notes en cours ou programmées. */

@@ -1,8 +1,23 @@
 // Lecteur : programme les notes un peu à l'avance (horloge audio) et boucle la progression.
 import { arrange, totalBeats } from '../gen/arrange.js';
 
-const LOOKAHEAD = 0.28;
+// Sur téléphone on programme plus loin à l'avance : un ralentissement de l'écran ne crée pas de trou.
+const MOBILE = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
+const LOOKAHEAD = MOBILE ? 0.5 : 0.28;
 const TICK_MS = 25;
+// Une note un peu en retard est jouée tout de suite plutôt que sautée.
+const LATE_TOLERANCE = 0.25;
+
+function makeClock(onTick) {
+  try {
+    const worker = new Worker(new URL('./clock-worker.js', import.meta.url));
+    worker.onmessage = onTick;
+    return { start: () => worker.postMessage({ interval: TICK_MS }), stop: () => worker.postMessage({ interval: 0 }) };
+  } catch {
+    let id = null;
+    return { start: () => { clearInterval(id); id = setInterval(onTick, TICK_MS); }, stop: () => clearInterval(id) };
+  }
+}
 
 export class Player {
   constructor(synth, midiOut) {
@@ -13,6 +28,13 @@ export class Player {
     this.events = [];
     this.length = 0;
     this.listeners = new Set();
+    this.stats = { notes: 0, late: 0, dropped: 0 };
+    this.clock = null;
+  }
+
+  startClock() {
+    this.clock = this.clock ?? makeClock(() => this.playing && this.tick());
+    this.clock.start();
   }
 
   onChange(fn) {
@@ -58,16 +80,18 @@ export class Player {
     this.startBeat = 0;
     this.cursor = 0;
     this.loopIndex = 0;
-    this.timer = setInterval(() => this.tick(), TICK_MS);
+    this.synth.keepAlive = true;
+    this.startClock();
     this.tick();
     this.emit();
   }
 
   stop() {
     if (!this.playing) return;
-    clearInterval(this.timer);
+    this.clock?.stop();
     this.playing = false;
     this.previewing = null;
+    this.synth.keepAlive = false;
     this.synth.panic();
     this.midiOut?.allOff();
     this.emit();
@@ -75,7 +99,8 @@ export class Player {
 
   /** Fin naturelle (sans boucle) : on laisse sonner la queue des notes. */
   finish() {
-    clearInterval(this.timer);
+    this.clock?.stop();
+    this.synth.keepAlive = false;
     this.playing = false;
     this.previewing = null;
     this.emit();
@@ -112,8 +137,15 @@ export class Player {
       const when = this.startTime + (this.loopIndex * this.length + e.start) * spb;
       if (when > horizon) return;
       this.cursor += 1;
-      if (when < this.synth.now() - 0.05) continue;
-      this.trigger(e, when, e.dur * spb);
+      this.stats.notes += 1;
+      const now = this.synth.now();
+      if (when < now) this.stats.late += 1;
+      if (when < now - LATE_TOLERANCE) {
+        this.stats.dropped += 1;
+        continue;
+      }
+      const lateBy = Math.max(0, now - when);
+      this.trigger(e, Math.max(when, now), e.dur * spb - lateBy);
     }
   }
 
