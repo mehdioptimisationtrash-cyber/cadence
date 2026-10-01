@@ -120,7 +120,7 @@ export function renderTimeline(container, ctx) {
       'aria-label': `${label}, ${beatsLabel(chord.beats)}`,
       onClick: () => {
         ctx.set((st) => ({ ...st, selected: st.selected === chord.id ? null : chord.id }), { history: false });
-        ctx.audition(chord);
+        ctx.auditionAt(i);
       },
       onKeydown: (e) => {
         if (e.key === 'Enter') e.currentTarget.click();

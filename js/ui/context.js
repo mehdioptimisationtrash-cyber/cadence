@@ -5,6 +5,7 @@ import { chordSymbol } from '../theory/chords.js';
 import { romanNumeral, chordFunction } from '../theory/harmony.js';
 import { voiceChord, bassNote } from '../theory/voicing.js';
 import { freezeBass } from '../actions.js';
+import { arrange, chordStarts } from '../gen/arrange.js';
 
 export function createContext({ store, player, synth, midiOut }) {
   let spellerKey = '';
@@ -57,6 +58,23 @@ export function createContext({ store, player, synth, midiOut }) {
       player.state = player.state ?? state;
       player.audition(notes, { bass });
       ctx.flash([...notes, ...(bass == null ? [] : [bass])]);
+    },
+    /**
+     * Écoute d'une carte de la progression : l'accord + la basse réellement jouée à cet endroit
+     * (celle de l'éditeur si elle a été écrite à la main, sinon celle du motif).
+     */
+    auditionAt(index) {
+      const state = store.get();
+      const chord = state.chords[index];
+      if (!chord || chord.rest) return;
+      const start = chordStarts(state.chords)[index];
+      const end = start + chord.beats;
+      const bassLine = arrange(state).filter((e) => e.track === 'bass' && e.start < end && e.start + e.dur > start);
+      const sounding = bassLine.find((e) => e.start <= start + 1e-6) ?? bassLine[0] ?? null;
+      const notes = voiceChord(chord, { style: state.arrangement.voicing });
+      player.state = player.state ?? state;
+      player.audition(notes, { bass: sounding ? sounding.midi : null });
+      ctx.flash([...notes, ...(sounding ? [sounding.midi] : [])]);
     },
     playNotes(notes, track = 'chords') {
       player.state = player.state ?? store.get();

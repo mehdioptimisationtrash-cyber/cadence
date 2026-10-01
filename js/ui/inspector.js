@@ -25,7 +25,8 @@ export function renderInspector(container, ctx, { scrim }) {
   const close = () => ctx.set((st) => ({ ...st, selected: null }), { history: false });
   const edit = (patch, listen = true) => {
     ctx.set((st) => updateChord(st, chord.id, patch));
-    if (listen) ctx.audition({ ...chord, ...patch });
+    // Écoute avec la basse réellement enregistrée sous l'accord (recalée sur la modification).
+    if (listen) ctx.auditionAt(ctx.state.chords.findIndex((c) => c.id === chord.id));
   };
   if (chord.rest) {
     const idx = s.chords.findIndex((c) => c.id === chord.id);
@@ -86,7 +87,7 @@ export function renderInspector(container, ctx, { scrim }) {
       h('div', { class: 'insp-meta' },
         h('div', { class: 'insp-roman' }, ctx.roman(chord)),
         h('div', { class: 'insp-fn' }, `${FUNCTIONS[fn].label} · ${FUNCTIONS[fn].hint}`)),
-      iconButton('ear', 'Écouter', () => ctx.audition(chord)),
+      iconButton('ear', 'Écouter', () => ctx.auditionAt(s.chords.findIndex((c) => c.id === chord.id))),
       iconButton('copy', 'Dupliquer', () => ctx.set((st) => duplicateChord(st, chord.id))),
       iconButton('trash', 'Supprimer', () => ctx.set((st) => removeChord(st, chord.id))),
       iconButton('close', 'Fermer', close)),

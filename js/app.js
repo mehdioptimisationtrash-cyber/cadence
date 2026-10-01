@@ -251,7 +251,7 @@ document.addEventListener('keydown', (e) => {
     const idx = state.chords.findIndex((c) => c.id === state.selected);
     const next = e.key === 'ArrowRight' ? Math.min(state.chords.length - 1, idx + 1) : Math.max(0, idx === -1 ? 0 : idx - 1);
     ctx.set((s) => ({ ...s, selected: s.chords[next].id }), { history: false });
-    ctx.audition(state.chords[next]);
+    ctx.auditionAt(next);
   } else if (e.key === 'Escape') {
     if (sheetOpen) closeKeySheet();
     else ctx.set((s) => ({ ...s, selected: null }), { history: false });
