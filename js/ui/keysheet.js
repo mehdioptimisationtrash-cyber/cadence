@@ -1,5 +1,5 @@
 // Choix de la tonalité : cercle des quintes, tonique, gamme / mode.
-import { h, iconButton, mount, section, toggle } from './dom.js';
+import { h, sym, icon, iconButton, mount, section, toggle } from './dom.js';
 import { SCALES, getScale, isMinorScale } from '../theory/scales.js';
 import { diatonicChords, chordFunction } from '../theory/harmony.js';
 import { setKey } from '../actions.js';
@@ -25,7 +25,7 @@ function arc(cx, cy, r1, r2, a0, a1) {
 }
 
 /** Cercle des quintes : anneau extérieur = majeures, intérieur = mineures relatives. */
-function circleOfFifths(ctx, onPick) {
+function circleOfFifths(ctx, heard, onPick) {
   const s = ctx.state;
   const minorKey = isMinorScale(getScale(s.key.scale));
   const tonicMajor = minorKey ? (s.key.root + 3) % 12 : s.key.root;
@@ -44,15 +44,16 @@ function circleOfFifths(ctx, onPick) {
     [[maj, false, 104, 146], [minor, true, 62, 102]].forEach(([p, isMin, r1, r2]) => {
       const fn = fnOf(p, isMin);
       const current = isKey && isMin === minorKey;
+      const isHeard = heard && heard.root === p && (heard.scale === 'minor') === isMin;
       const path = svg('path', {
         d: arc(150, 150, r1, r2, a0 + 0.012, a1 - 0.012),
         fill: fn ? `${FN_COLOR[fn]}${current ? 'ff' : '40'}` : '#1a1621',
-        stroke: current ? '#f4ede3' : 'rgba(255,244,230,0.08)',
-        'stroke-width': current ? 2 : 1,
+        stroke: isHeard ? '#ffb547' : current ? '#f4ede3' : 'rgba(255,244,230,0.08)',
+        'stroke-width': isHeard ? 3 : current ? 2 : 1,
         class: isMin ? 'seg-minor' : 'seg-major',
         tabindex: 0,
         role: 'button',
-        'aria-label': `${ctx.note(p)} ${isMin ? 'mineur' : 'majeur'}`,
+        'aria-label': `Écouter ${ctx.note(p)} ${isMin ? 'mineur' : 'majeur'}`,
       });
       const pick = () => onPick(p, isMin ? 'minor' : 'major');
       path.addEventListener('click', pick);
@@ -64,7 +65,18 @@ function circleOfFifths(ctx, onPick) {
         'text-anchor': 'middle', 'font-size': isMin ? 13 : 18,
         fill: current ? '#0d0b11' : fn ? '#f4ede3' : '#6f687a',
       });
-      label.textContent = `${ctx.note(p)}${isMin ? 'm' : ''}`;
+      // Altération en petit exposant (la police d'affichage n'a pas de ♭/♯), puis retour à la ligne de base.
+      const lift = isMin ? 3 : 5;
+      let raised = false;
+      `${ctx.note(p)}${isMin ? 'm' : ''}`.split(/([♭♯])/).filter(Boolean).forEach((part) => {
+        const acc = /[♭♯]/.test(part);
+        const span = svg('tspan', acc
+          ? { 'font-family': 'Bricolage Grotesque, system-ui, sans-serif', 'font-size': isMin ? 9 : 12, dy: -lift, dx: 0.5 }
+          : { dy: raised ? lift : 0 });
+        span.textContent = part;
+        label.append(span);
+        raised = acc;
+      });
       root.append(path, label);
     });
   });
@@ -74,8 +86,48 @@ function circleOfFifths(ctx, onPick) {
   return root;
 }
 
+// Case de la roue écoutée en dernier (gardée quand la feuille se redessine).
+let heard = null;
+let timers = [];
+
+function playLater(steps) {
+  timers.forEach(clearTimeout);
+  timers = steps.map(([ms, fn]) => setTimeout(fn, ms));
+}
+
+// Cadence I–IV–V7–I (ou i–iv–V7–i) : fait entendre la couleur d'une tonalité en 2 secondes.
+function cadenceOf(root, scale) {
+  const minor = scale === 'minor';
+  return [
+    { root, quality: minor ? 'min' : 'maj' },
+    { root: (root + 5) % 12, quality: minor ? 'min' : 'maj' },
+    { root: (root + 7) % 12, quality: '7' },
+    { root, quality: minor ? 'min' : 'maj' },
+  ];
+}
+
+function heardCard(ctx, apply) {
+  if (!heard) return h('p', { class: 'panel-sub circle-hint' }, 'Touche une case de la roue pour entendre son accord.');
+  const name = `${ctx.note(heard.root)} ${heard.scale === 'minor' ? 'mineur' : 'majeur'}`;
+  const isCurrent = ctx.state.key.root === heard.root && ctx.state.key.scale === heard.scale;
+  const listen = () => playLater(cadenceOf(heard.root, heard.scale).map((c, i) => [i * 620, () => ctx.audition(c)]));
+  return h('div', { class: 'heard' },
+    h('div', { class: 'heard-name' }, sym(name)),
+    h('div', { class: 'btn-row' },
+      h('button', { class: 'btn', onClick: listen }, icon('play'), 'Entendre la tonalité'),
+      isCurrent
+        ? h('span', { class: 'heard-current' }, 'Tonalité actuelle')
+        : h('button', { class: 'btn primary', onClick: () => apply(heard.root, heard.scale) }, 'Choisir')));
+}
+
+function playScale(ctx, root, scaleId) {
+  const notes = [...getScale(scaleId).iv, 12].map((iv) => 60 + root + iv);
+  playLater(notes.map((m, i) => [i * 190, () => ctx.playNotes([m], 'melody')]));
+}
+
 export function renderKeySheet(container, ctx, { close }) {
   const s = ctx.state;
+  const rerender = () => renderKeySheet(container, ctx, { close });
   const opts = s.ui.keyOptions ?? { transposeAll: true, adaptMode: true };
   const apply = (root, scale) => {
     ctx.set((st) => setKey(st, { root, scale }, opts));
@@ -89,7 +141,12 @@ export function renderKeySheet(container, ctx, { close }) {
       iconButton('close', 'Fermer', close)),
     h('div', { class: 'key-layout' },
       h('div', {},
-        circleOfFifths(ctx, (root, scale) => apply(root, scale)),
+        circleOfFifths(ctx, heard, (root, scale) => {
+          heard = { root, scale };
+          ctx.audition({ root, quality: scale === 'minor' ? 'min' : 'maj' });
+          rerender();
+        }),
+        heardCard(ctx, apply),
         section('Tonique', null, h('div', { class: 'note-grid' }, Array.from({ length: 12 }, (_, p) => h('button', {
           'aria-pressed': String(p === s.key.root),
           onClick: () => apply(p, s.key.scale),
@@ -97,7 +154,12 @@ export function renderKeySheet(container, ctx, { close }) {
         h('div', { class: 'section' },
           toggle('Transposer la progression', opts.transposeAll, (transposeAll) => ctx.setUi({ keyOptions: { ...opts, transposeAll } }), 'les accords suivent la nouvelle tonique'),
           toggle('Adapter au nouveau mode', opts.adaptMode, (adaptMode) => ctx.setUi({ keyOptions: { ...opts, adaptMode } }), 'I–V–vi–IV devient i–v–VI–iv en mineur'))),
-      h('div', {}, groups.map((gname) => section(gname, null, h('div', { class: 'scale-list' }, SCALES.filter((x) => x.group === gname).map((sc) => h('button', {
-        class: 'scale-btn', 'aria-pressed': String(sc.id === s.key.scale), onClick: () => apply(s.key.root, sc.id),
-      }, h('b', {}, sc.name), h('small', {}, sc.hint)))))))));
+      h('div', {}, groups.map((gname) => section(gname, gname === groups[0] ? 'touche ▶ pour entendre la gamme' : null, h('div', { class: 'scale-list' }, SCALES.filter((x) => x.group === gname).map((sc) => h('div', { class: 'scale-item' },
+        h('button', {
+          class: 'scale-btn', 'aria-pressed': String(sc.id === s.key.scale), onClick: () => apply(s.key.root, sc.id),
+        }, h('b', {}, sc.name), h('small', {}, sc.hint)),
+        h('button', {
+          class: 'scale-play', 'aria-label': `Écouter la gamme ${sc.name} en ${ctx.note(s.key.root)}`,
+          onClick: () => playScale(ctx, s.key.root, sc.id),
+        }, icon('play'))))))))));
 }

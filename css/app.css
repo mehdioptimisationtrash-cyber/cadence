@@ -707,3 +707,13 @@ select.select { -webkit-appearance: none; appearance: none; background-image: li
 .stage-head .meta { white-space: nowrap; font-size: var(--text-xs); }
 @media (min-width: 1100px) { .tabbar { display: none; } }
 @media (max-width: 420px) { .tempo .icon-btn { display: none; } .tempo { padding: 6px 8px; } }
+
+.circle-hint { text-align: center; margin: 8px 0 0; }
+.heard { margin-top: 10px; padding: 12px; border-radius: var(--radius-m); background: var(--surface); border: 1px solid rgba(255, 181, 71, 0.4); display: grid; gap: 10px; }
+.heard-name { font-family: var(--font-display); font-size: 1.6rem; line-height: 1; }
+.heard-current { align-self: center; font-size: var(--text-sm); color: var(--muted); }
+.scale-item { position: relative; display: grid; }
+.scale-item .scale-btn { padding-right: 40px; }
+.scale-play { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); background: var(--surface-2); transition: color var(--fast), background var(--fast); }
+.scale-play:hover { color: var(--accent-ink); background: var(--accent); }
+.scale-play svg.icon { width: 14px; height: 14px; }
