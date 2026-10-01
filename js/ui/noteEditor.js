@@ -285,7 +285,9 @@ export function createNoteEditor(root, ctx) {
   canvas.addEventListener('pointerdown', (e) => {
     if (!openTrack) return;
     e.preventDefault();
-    canvas.setPointerCapture(e.pointerId);
+    try {
+      canvas.setPointerCapture(e.pointerId);
+    } catch { /* Safari peut refuser la capture */ }
     const p = local(e);
     pointers.set(e.pointerId, p);
     if (pointers.size === 2) {

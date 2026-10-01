@@ -66,14 +66,17 @@ await step('key sheet → D minor', async () => {
   await page.waitForTimeout(300);
   console.log('     key:', await page.textContent('.k-value'), '|', await page.locator('.card-sym').allTextContents());
 });
-await step('tools: export + detector', async () => {
+await step('tools: export + clavier détecteur', async () => {
   await page.click('#tabbar .tab:has-text("Outils")');
   // Sur téléphone, l'export passe par le menu de partage (AirDrop, Fichiers) : on vérifie les boutons.
   await page.waitForSelector('.export-actions .btn');
   const labels = await page.locator('.export-actions .btn').allTextContents();
   if (!labels.some((l) => l.includes('AirDrop'))) throw new Error(labels.join());
-  for (const m of [60, 64, 67]) await page.dispatchEvent(`#panel-tools .keyboard [data-midi="${m}"]`, 'pointerdown');
-  console.log('     detect:', await page.locator('#panel-tools .chips .chip-sym').allTextContents());
+  await page.click('.kb-pill:has-text("Maintenir")');
+  for (const m of [60, 64, 67]) await page.dispatchEvent(`#keybed [data-midi="${m}"]`, 'pointerdown');
+  await page.waitForTimeout(300);
+  const name = (await page.textContent('.kb-name')).trim();
+  if (name !== 'C') throw new Error(`accord détecté : ${name}`);
   await page.screenshot({ path: `${SP}/m-tools.png` });
 });
 await step('reload keeps session', async () => {

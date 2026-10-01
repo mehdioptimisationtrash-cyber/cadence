@@ -792,3 +792,53 @@ body.editor-open { overflow: hidden; }
 @media (min-width: 900px) { .ne-actions { grid-template-columns: repeat(8, minmax(0, 96px)); } }
 
 .card-sym.is-long { font-size: 1.45rem; }
+
+/* ---------- Clavier jouable ---------- */
+.keybed { display: grid; gap: 8px; }
+.kb-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 12px; border-radius: var(--radius-m); background: var(--surface); border: 1px solid var(--line);
+}
+.kb-readout { flex: 1 1 160px; min-width: 0; }
+.kb-title { display: flex; align-items: baseline; gap: 10px; min-height: 2.1rem; }
+.kb-name { font-family: var(--font-display); font-size: 2rem; line-height: 1; }
+.kb-name.dim { color: var(--muted); font-size: 1.3rem; }
+.kb-idle { color: var(--muted); font-size: var(--text-sm); font-weight: 600; align-self: center; }
+.kb-roman { font-size: var(--text-xs); font-weight: 700; color: var(--accent); }
+.kb-sub { font-size: var(--text-xs); color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kb-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.kb-add { padding: 8px 12px; }
+.kb-pill { display: inline-flex; align-items: center; gap: 5px; padding: 7px 11px; }
+.kb-pill svg.icon { width: 15px; height: 15px; }
+.kb-oct { display: flex; gap: 2px; padding: 2px; border-radius: 10px; background: var(--bg-2); border: 1px solid var(--line); }
+.kb-wrap .keyboard { height: 120px; }
+@media (min-width: 1100px) { .kb-wrap .keyboard { height: 104px; } }
+.key-w.on-held, .key-b.on-held { background: var(--accent); }
+.key-w.on-pick, .key-b.on-pick { background: var(--trk-melody); }
+.key-w:active { filter: brightness(0.92); }
+
+/* ---------- Accordeur ---------- */
+.sheet.tuner { z-index: 52; }
+#tuner-scrim { z-index: 51; }
+.tn-layout { display: grid; gap: 16px; margin-top: 6px; }
+@media (min-width: 900px) { .tn-layout { grid-template-columns: 340px 1fr; gap: 28px; } }
+.tn-dial { display: grid; justify-items: center; text-align: center; gap: 2px; padding: 8px 0 4px; }
+.tn-gauge { width: min(100%, 300px); height: auto; }
+.tn-gauge .tn-needle { transform-origin: 150px 150px; transition: transform 90ms linear; }
+.tn-gauge .tn-needle line { stroke: var(--text); }
+.tn-gauge .tn-needle circle { fill: var(--text); }
+.tn-gauge.is-tuned .tn-needle line { stroke: var(--fn-T); }
+.tn-gauge.is-tuned .tn-needle circle { fill: var(--fn-T); }
+.tn-note { font-family: var(--font-display); font-size: 4.2rem; line-height: 0.9; margin-top: 2px; }
+.tn-note small { font-family: var(--font-ui); font-size: 1rem; color: var(--muted); margin-left: 4px; }
+.tn-cents { font-size: var(--text-sm); color: var(--muted); font-variant-numeric: tabular-nums; min-height: 1.2em; }
+.tn-hint { font-size: var(--text-sm); font-weight: 700; color: var(--text); min-height: 1.3em; margin-top: 4px; }
+.tn-gauge.is-tuned ~ .tn-hint { color: var(--fn-T); }
+.tn-level { width: 140px; height: 4px; border-radius: 4px; background: var(--surface-3); overflow: hidden; margin-top: 8px; }
+.tn-level i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 80ms; }
+.tn-validate:disabled { opacity: 0.4; box-shadow: none; }
+.tn-collected { margin-top: 16px; }
+.tn-chip { font-weight: 700; }
+.tn-chord { margin-top: 12px; padding: 12px; border-radius: var(--radius-m); background: var(--surface); border: 1px solid var(--line); display: grid; gap: 10px; }
+.tn-chord-name { font-family: var(--font-display); font-size: 2.2rem; line-height: 1; }
+.tn-tip { margin-top: 14px; }

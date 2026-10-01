@@ -1,10 +1,7 @@
 // Outils : export MIDI, bibliothèque, partage, détecteur d'accords, réglages, aide.
 import { h, sym, icon, mount, section, segmented, toast } from './dom.js';
 import { midiFromState } from '../midi/export.js';
-import { detectChords } from '../theory/chords.js';
 import { loadLibrary, saveToLibrary, removeFromLibrary, shareUrl, sanitizeSong } from '../state.js';
-import { addChord } from '../actions.js';
-import { createKeyboard } from './keyboard.js';
 import { APP_VERSION } from '../version.js';
 
 function fileName(ctx, suffix = '') {
@@ -180,51 +177,13 @@ function shareSection(ctx) {
     h('button', { class: 'btn', onClick: share }, icon('share'), 'Lien de partage'));
 }
 
-// Notes choisies dans le détecteur : gardées quand le panneau se redessine.
-const picked = new Set();
-
-function detectorSection(ctx) {
-  const results = h('div', { class: 'chips', style: { marginTop: '10px' } });
-  const kb = h('div', { class: 'keyboard tall' });
-  const keyboard = createKeyboard(kb, {
-    low: 48, high: 76, labels: true,
-    onPress: (m) => {
-      if (picked.has(m)) picked.delete(m);
-      else {
-        picked.add(m);
-        ctx.playNotes([m]);
-      }
-      update();
-    },
-  });
-  function update() {
-    keyboard.light({ pick: [...picked] });
-    const found = detectChords([...picked]);
-    results.replaceChildren(...(picked.size < 2
-      ? [h('span', { class: 'panel-sub' }, 'Touche au moins 2 notes sur le clavier.')]
-      : found.length
-        ? found.map((c) => h('div', { class: `chip fn-${ctx.fn(c)}` },
-          h('button', { class: 'chip-play', onClick: () => ctx.audition(c) }, h('span', { class: 'chip-roman' }, ctx.roman(c)), h('span', { class: 'chip-sym' }, sym(ctx.label(c)))),
-          h('button', {
-            class: 'chip-add', 'aria-label': `Ajouter ${ctx.label(c)}`,
-            onClick: () => {
-              ctx.set((st) => addChord(st, c));
-              toast(`${ctx.label(c)} ajouté`);
-            },
-          }, icon('plus'))))
-        : [h('span', { class: 'panel-sub' }, 'Pas d’accord connu pour ces notes.')]));
-  }
-  update();
-  return section('Détecteur d’accords', 'joue des notes, Cadence nomme l’accord', kb, results,
-    h('button', { class: 'btn ghost', style: { marginTop: '8px' }, onClick: () => { picked.clear(); update(); } }, 'Vider le clavier'));
-}
-
 const HELP = [
   ['Construire', 'Dans <b>Accords</b>, touche un accord pour l’écouter et + pour l’ajouter. La section « Après… » propose les enchaînements les plus naturels, avec la raison musicale.'],
   ['Couleurs', '<b>Vert</b> = tonique (repos), <b>jaune</b> = sous-dominante (élan), <b>rouge</b> = dominante (tension), <b>rose</b> = dominante secondaire, <b>violet</b> = emprunt à un autre mode.'],
   ['Modifier', 'Touche une carte de la progression : durée, renversement, basse, qualité, variantes. Glisse la poignée ⋮⋮ pour réordonner.'],
   ['Générer', 'Dans <b>Générer</b>, choisis une ambiance et lance les dés, ou pars d’une progression célèbre. Change la tonalité en haut : les accords suivent.'],
   ['Mélodie', 'Dans <b>Mélodie</b>, compose une ligne qui épouse tes accords. Le bouton ✎ au-dessus du piano roll permet de retoucher la mélodie ou la basse note par note : toucher pour ajouter ou effacer, glisser pour déplacer.'],
+  ['Clavier', 'Joue sur le clavier du milieu (plusieurs doigts) : la note et l’accord s’affichent, « Ajouter » le met dans la progression. <b>Maintenir</b> construit un accord note par note ; <b>Siffler</b> ouvre l’accordeur micro. Sur Mac, les touches Q/A S D F G H J K jouent les notes (W/Z X pour l’octave).'],
   ['Exporter', 'Dans <b>Outils</b> : sur iPhone, « Partager » envoie le fichier MIDI par AirDrop ou dans Fichiers ; sur Mac (Chrome), glisse la tuile directement dans Logic, Ableton, FL Studio…'],
   ['Raccourcis Mac', '<b>Espace</b> lecture · <b>1–7</b> ajoute le degré · <b>⌘Z / ⇧⌘Z</b> annuler / rétablir · <b>Suppr</b> retire l’accord sélectionné · <b>← →</b> sélection.'],
 ];
@@ -236,7 +195,6 @@ export function renderToolsPanel(container, ctx) {
     exportSection(ctx),
     librarySection(ctx, rerender),
     shareSection(ctx),
-    detectorSection(ctx),
     section('Nom des notes', null, segmented([{ value: 'en', label: 'C D E' }, { value: 'fr', label: 'Do Ré Mi' }], ctx.state.notation,
       (notation) => ctx.set((st) => ({ ...st, notation }), { history: false }), { full: true })),
     h('details', { class: 'fold help' }, h('summary', {}, 'Mode d’emploi'),

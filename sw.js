@@ -1,7 +1,7 @@
 // Service worker : l'app fonctionne hors ligne.
 // Fichiers de l'app : réseau d'abord (mises à jour immédiates), copie locale si hors ligne.
 // À chaque modification du site, augmenter CACHE_VERSION (et APP_VERSION dans js/version.js).
-const CACHE_VERSION = 'cadence-v9';
+const CACHE_VERSION = 'cadence-v10';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'icons/icon.svg', 'icons/icon-180.png', 'icons/icon-512.png',
@@ -11,7 +11,7 @@ const SHELL = [
   'js/audio/synth.js', 'js/audio/player.js', 'js/audio/clock-worker.js', 'js/midi/export.js', 'js/midi/webmidi.js',
   'js/ui/dom.js', 'js/ui/context.js', 'js/ui/topbar.js', 'js/ui/timeline.js', 'js/ui/inspector.js', 'js/ui/palette.js',
   'js/ui/generatePanel.js', 'js/ui/melodyPanel.js', 'js/ui/soundPanel.js', 'js/ui/toolsPanel.js', 'js/ui/keysheet.js',
-  'js/ui/keyboard.js', 'js/ui/pianoroll.js', 'js/ui/noteEditor.js',
+  'js/ui/keyboard.js', 'js/ui/pianoroll.js', 'js/ui/noteEditor.js', 'js/ui/keybed.js', 'js/ui/tuner.js', 'js/audio/pitch.js',
 ];
 const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com'];
 

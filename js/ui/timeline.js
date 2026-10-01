@@ -33,7 +33,9 @@ function attachDrag(card, grip, index, container, ctx) {
     const rects = cards.map((c) => c.getBoundingClientRect());
     const start = { x: ev.clientX, y: ev.clientY };
     let target = index;
-    grip.setPointerCapture(ev.pointerId);
+    try {
+      grip.setPointerCapture(ev.pointerId);
+    } catch { /* Safari peut refuser la capture */ }
     card.classList.add('is-dragging');
     const move = (e) => {
       const dx = e.clientX - start.x;

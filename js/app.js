@@ -4,7 +4,6 @@ import {
 } from './state.js';
 import { addChord, removeChord } from './actions.js';
 import { diatonicChord } from './theory/harmony.js';
-import { scalePitchClasses } from './theory/scales.js';
 import { generateMelody } from './gen/melody.js';
 import { Synth } from './audio/synth.js';
 import { Player } from './audio/player.js';
@@ -20,7 +19,8 @@ import { renderMelodyPanel } from './ui/melodyPanel.js';
 import { renderSoundPanel } from './ui/soundPanel.js';
 import { renderToolsPanel } from './ui/toolsPanel.js';
 import { renderKeySheet } from './ui/keysheet.js';
-import { createKeyboard } from './ui/keyboard.js';
+import { createKeybed } from './ui/keybed.js';
+import { createTuner } from './ui/tuner.js';
 import { createPianoRoll } from './ui/pianoroll.js';
 import { createNoteEditor } from './ui/noteEditor.js';
 
@@ -94,7 +94,8 @@ function renderTabs(state) {
 
 // --- Rendu ---
 
-const keyboard = createKeyboard($('keyboard'), { low: 36, high: 84 });
+const keybed = createKeybed($('keybed'), ctx, { openTuner: () => tuner.open() });
+const tuner = createTuner($('tuner'), $('tuner-scrim'), ctx, { addNote: (m) => keybed.addNote(m) });
 const roll = createPianoRoll($('roll'), $('roll-wrap'), ctx);
 const editor = createNoteEditor($('note-editor'), ctx);
 let sheetOpen = false;
@@ -145,7 +146,8 @@ function render() {
   const visible = new Set([activeTab(state)]);
   if (desktop.matches) visible.add('palette');
   visible.forEach((id) => PANELS[id]($(`panel-${id}`), ctx));
-  keyboard.setScale(state.key.root, scalePitchClasses(state.key.root, state.key.scale));
+  keybed.sync();
+  tuner.refresh();
   roll.refresh();
   renderSheet();
 }
@@ -201,11 +203,11 @@ function paintFrame() {
     player.events.forEach((e) => {
       if (pos >= e.start && pos < e.start + e.dur) lit[e.track].push(e.midi);
     });
-    keyboard.light(lit);
+    keybed.light(lit);
   } else if (performance.now() < flash.until) {
-    keyboard.light({ chords: flash.notes });
+    keybed.light({ chords: flash.notes });
   } else {
-    keyboard.light({});
+    keybed.light({});
   }
 }
 
@@ -213,9 +215,18 @@ function paintFrame() {
 
 const typing = (el) => el && (['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) || el.isContentEditable);
 
+document.addEventListener('keyup', (e) => {
+  if (!typing(e.target) && !editor.isOpen()) keybed.keyup(e);
+});
+
 document.addEventListener('keydown', (e) => {
   if (typing(e.target)) return;
+  if (tuner.isOpen()) {
+    if (e.key === 'Escape') tuner.close();
+    return;
+  }
   if (editor.handleKey(e)) return;
+  if (keybed.keydown(e)) return;
   const state = store.get();
   const meta = e.metaKey || e.ctrlKey;
   if (e.code === 'Space') {

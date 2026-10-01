@@ -1,6 +1,6 @@
 // Contexte partagé : magasin, audio et petits utilitaires d'affichage musical.
 import { makeSpeller } from '../theory/notes.js';
-import { getScale } from '../theory/scales.js';
+import { getScale, scalePitchClasses } from '../theory/scales.js';
 import { chordSymbol } from '../theory/chords.js';
 import { romanNumeral, chordFunction } from '../theory/harmony.js';
 import { voiceChord, bassNote } from '../theory/voicing.js';
@@ -37,6 +37,7 @@ export function createContext({ store, player, synth, midiOut }) {
         return track === 'bass' ? freezeBass(next) : next;
       }, { history: false });
     },
+    scalePcs: (state = store.get()) => scalePitchClasses(state.key.root, state.key.scale),
     note: (p, state = store.get()) => getSpeller(state.key).name(p, state.notation),
     label: (chord, state = store.get()) => chordSymbol(chord, getSpeller(state.key), state.notation),
     roman: (chord, state = store.get()) => romanNumeral(chord, state.key),

@@ -374,7 +374,8 @@ export class Synth {
     const voice = VOICES[instrument] ?? VOICES.epiano;
     const t = Math.max(when, this.ctx.currentTime);
     if (choke) {
-      this.choke((v) => v.group === choke.group && (choke.mono || v.token !== choke.token || v.midi === midi), t);
+      this.choke((v) => v.group === choke.group
+        && (choke.pitchOnly ? v.midi === midi : choke.mono || v.token !== choke.token || v.midi === midi), t);
     }
     const v = voice(this.ctx, this.buses[track], midiToFreq(midi), t, Math.max(0.05, dur), vel);
     v.nodes.forEach((node) => {
@@ -385,6 +386,17 @@ export class Synth {
     this.voices.add(entry);
     if (this.voices.size > MAX_VOICES) this.fade(this.voices.values().next().value, this.ctx.currentTime);
     v.nodes[0].onended = () => this.voices.delete(entry);
+    return entry;
+  }
+
+  /** Note tenue (clavier) : sonne jusqu'à noteOff. */
+  noteOn(track, instrument, midi, vel = 0.72) {
+    this.ensure();
+    return this.play(track, instrument, midi, this.ctx.currentTime + 0.005, 12, vel, { group: 'keys', pitchOnly: true });
+  }
+
+  noteOff(voice, release = 0.22) {
+    if (voice && this.ctx) this.fade(voice, this.ctx.currentTime, release / 3);
   }
 
   /** Éteint en douceur (≈15 ms, sans clic) les voix choisies, à l'instant t. */
@@ -392,15 +404,15 @@ export class Synth {
     [...this.voices].filter(predicate).forEach((v) => this.fade(v, t));
   }
 
-  fade(voice, t) {
+  fade(voice, t, timeConstant = 0.012) {
     if (!voice) return;
     const gain = voice.amp?.gain;
     if (gain) {
       gain.cancelScheduledValues(t);
-      gain.setTargetAtTime(0.0001, t, 0.012);
+      gain.setTargetAtTime(0.0001, t, timeConstant);
     }
     voice.nodes.forEach((n) => {
-      try { n.stop(t + 0.09); } catch { /* déjà arrêtée */ }
+      try { n.stop(t + Math.max(0.09, timeConstant * 8)); } catch { /* déjà arrêtée */ }
     });
     this.voices.delete(voice);
   }
