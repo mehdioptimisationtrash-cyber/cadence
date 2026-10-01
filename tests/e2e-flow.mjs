@@ -69,6 +69,7 @@ await step('key sheet → D minor', async () => {
 await step('tools: export + detector', async () => {
   await page.click('#tabbar .tab:has-text("Outils")');
   // Sur téléphone, l'export passe par le menu de partage (AirDrop, Fichiers) : on vérifie les boutons.
+  await page.waitForSelector('.export-actions .btn');
   const labels = await page.locator('.export-actions .btn').allTextContents();
   if (!labels.some((l) => l.includes('AirDrop'))) throw new Error(labels.join());
   for (const m of [60, 64, 67]) await page.dispatchEvent(`#panel-tools .keyboard [data-midi="${m}"]`, 'pointerdown');
