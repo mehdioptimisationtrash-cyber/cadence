@@ -161,3 +161,20 @@ test('ce que montre l’éditeur = ce que joue la tête de lecture (même avec d
   assert.deepEqual(pick('melody'), melody.map(({ midi, start, dur }) => ({ midi, start, dur })));
   assert.deepEqual(pick('bass'), bass.map(({ midi, start, dur }) => ({ midi, start, dur })));
 });
+
+test('basse écrite : intacte quand on remplace un accord, suit sa carte, change seulement si on change la basse', () => {
+  const written = [{ midi: 41, start: 0, dur: 4, vel: 0.8 }, { midi: 35, start: 4, dur: 2, vel: 0.8 }, { midi: 38, start: 6, dur: 2, vel: 0.8 }, { midi: 45, start: 12, dur: 4, vel: 0.8 }];
+  const st = song({ bassLine: { custom: true, notes: written } });
+  const ids = st.chords.map((c) => c.id);
+  // Remplacer G7 par une variante (G7sus4, Dm7…) : la basse écrite ne bouge pas.
+  const variant = updateChord(st, ids[1], { root: 2, quality: 'm7' });
+  assert.deepEqual(variant.bassLine.notes.map((n) => n.midi), [41, 35, 38, 45]);
+  // Choisir explicitement une basse (G7/F) : seule la note posée sur l'ancienne basse change.
+  const slash = updateChord(st, ids[1], { bass: 5 });
+  assert.deepEqual(slash.bassLine.notes.map((n) => n.midi), [41, 35, 38, 45]); // si et ré ne sont pas sur sol : rien ne change
+  const slashRoot = updateChord(updateChord(st, ids[0], { bass: 9 }), ids[0], { bass: null });
+  assert.equal(slashRoot.bassLine.notes[0].midi, 41);
+  // Insérer un accord avant G7 : les notes de G7 et des suivants avancent avec leur carte.
+  const inserted = addChord(st, { root: 9, quality: 'min' }, 1);
+  assert.deepEqual(inserted.bassLine.notes.map((n) => [n.midi, n.start]), [[41, 0], [35, 8], [38, 10], [45, 16]]);
+});

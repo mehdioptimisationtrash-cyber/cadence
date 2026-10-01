@@ -1,8 +1,13 @@
-// Quand un accord change, la mélodie et la basse écrites se recalent sur le nouvel accord,
-// pour que ce qu'on entend corresponde toujours aux accords affichés.
+// Mélodie et basse écrites face aux modifications de la progression.
+// 1. Les notes suivent leur accord (insertion, suppression, déplacement, durée).
+// 2. La mélodie se recale sur un accord dont l'harmonie change (pas de frottement).
+// 3. La basse écrite n'est JAMAIS retouchée, sauf si l'on choisit explicitement une autre basse
+//    pour l'accord (renversement, accord « slash », retour à la fondamentale).
 import { pc } from '../theory/notes.js';
 import { getScale } from '../theory/scales.js';
 import { chordPitchClasses, isRest } from '../theory/chords.js';
+
+const EPS = 1e-6;
 
 const sameHarmony = (a, b) => Boolean(a && b) && Boolean(a.rest) === Boolean(b.rest)
   && (a.rest || (a.root === b.root && a.quality === b.quality && (a.bass ?? null) === (b.bass ?? null)));
@@ -16,7 +21,7 @@ function timeline(chords) {
   });
 }
 
-const chordAt = (line, t) => line.find((x) => t >= x.start - 1e-6 && t < x.end - 1e-6)?.chord ?? null;
+const slotAt = (line, t) => line.find((x) => t >= x.start - EPS && t < x.end - EPS) ?? null;
 
 /**
  * Notes « permises » sur un accord : ses notes, plus les notes de la gamme qui ne frottent pas
@@ -38,35 +43,55 @@ function nearest(midi, pcs, maxDist = 6) {
   return midi;
 }
 
-const isStrong = (start) => Math.abs(start - Math.round(start)) < 1e-6 && Math.round(start) % 2 === 0;
+const isStrong = (start) => Math.abs(start - Math.round(start)) < EPS && Math.round(start) % 2 === 0;
 
-/** Mélodie : notes fortes sur une note de l'accord, autres notes sans frottement. */
-export function adaptMelody(notes, oldChords, newChords, key) {
+/**
+ * Déplace chaque note avec l'accord sous lequel elle se trouve. Les notes d'un accord supprimé
+ * disparaissent ; une note qui dépasse un accord raccourci est coupée.
+ * Renvoie { note, was, now } pour que l'appelant sache sur quel accord elle tombe.
+ */
+function follow(notes, oldChords, newChords) {
   const before = timeline(oldChords);
-  const after = timeline(newChords);
-  return notes.map((n) => {
-    const now = chordAt(after, n.start);
-    if (!now || isRest(now) || sameHarmony(chordAt(before, n.start), now)) return n;
-    const tones = chordPitchClasses(now);
-    const target = isStrong(n.start) ? tones : allowedPitchClasses(now, key);
-    return target.includes(pc(n.midi)) ? n : { ...n, midi: nearest(n.midi, target) };
+  const after = new Map(timeline(newChords).map((x) => [x.chord.id, x]));
+  const shared = oldChords.some((c) => after.has(c.id));
+  const afterLine = timeline(newChords);
+  return notes.flatMap((n) => {
+    const host = slotAt(before, n.start);
+    if (!shared || !host) {
+      // Progression entièrement remplacée (ou note après la fin) : la note reste à son temps.
+      return [{ note: n, was: host?.chord ?? null, now: slotAt(afterLine, n.start)?.chord ?? null }];
+    }
+    const target = after.get(host.chord.id);
+    if (!target) return [];
+    const offset = n.start - host.start;
+    if (offset >= target.chord.beats - EPS) return [];
+    const start = target.start + offset;
+    const fitted = noteEndWithin(n, host) ? Math.min(n.dur, target.end - start) : n.dur;
+    return [{ note: { ...n, start, dur: Math.max(0.05, fitted) }, was: host.chord, now: target.chord }];
   });
 }
 
-/** Basse écrite à la main : suit le mouvement de la basse de l'accord, puis se pose sur l'accord. */
-export function adaptBass(notes, oldChords, newChords) {
-  const before = timeline(oldChords);
-  const after = timeline(newChords);
-  return notes.map((n) => {
-    const was = chordAt(before, n.start);
-    const now = chordAt(after, n.start);
-    if (!now || isRest(now) || sameHarmony(was, now)) return n;
-    let midi = n.midi;
-    if (was && !isRest(was)) {
-      const move = pc((now.bass ?? now.root) - (was.bass ?? was.root));
-      midi += move > 6 ? move - 12 : move;
-    }
+const noteEndWithin = (n, host) => n.start + n.dur <= host.end + EPS;
+
+/** Mélodie : suit ses accords ; sur un accord modifié, notes fortes sur l'accord, sans frottement. */
+export function adaptMelody(notes, oldChords, newChords, key) {
+  return follow(notes, oldChords, newChords).map(({ note, was, now }) => {
+    if (!now || isRest(now) || sameHarmony(was, now)) return note;
     const tones = chordPitchClasses(now);
-    return { ...n, midi: tones.includes(pc(midi)) ? midi : nearest(midi, tones) };
+    const target = isStrong(note.start) ? tones : allowedPitchClasses(now, key);
+    return target.includes(pc(note.midi)) ? note : { ...note, midi: nearest(note.midi, target) };
+  });
+}
+
+/** Basse écrite : suit ses accords, mais ses notes ne changent que si on change la basse de l'accord. */
+export function adaptBass(notes, oldChords, newChords) {
+  return follow(notes, oldChords, newChords).map(({ note, was, now }) => {
+    if (!was || !now || isRest(now) || isRest(was)) return note;
+    if ((was.bass ?? null) === (now.bass ?? null)) return note;
+    // Seules les notes posées sur l'ancienne basse de l'accord passent sur la nouvelle.
+    if (pc(note.midi) !== pc(was.bass ?? was.root)) return note;
+    const target = pc(now.bass ?? now.root);
+    const move = pc(target - note.midi);
+    return { ...note, midi: note.midi + (move > 6 ? move - 12 : move) };
   });
 }

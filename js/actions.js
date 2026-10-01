@@ -95,7 +95,9 @@ export function moveChord(state, from, to) {
 
 export function replaceProgression(state, chords, scale = state.key.scale) {
   const items = chords.map((c) => makeChord(c));
-  return { ...withChords({ ...state, key: { ...state.key, scale } }, items), selected: null };
+  // Nouvelle progression complète : la basse écrite pour l'ancienne n'a plus de sens, on revient au motif.
+  const next = withChords({ ...state, key: { ...state.key, scale } }, items);
+  return { ...next, selected: null, bassLine: { custom: false, stale: false, notes: [] } };
 }
 
 export function clearProgression(state) {
