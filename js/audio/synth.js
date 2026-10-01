@@ -281,7 +281,8 @@ export class Synth {
 
   /** À appeler sur un geste de l'utilisateur (obligatoire sur iPhone). */
   ensure() {
-    if (!this.ctx) {
+    if (!this.ctx || this.ctx.state === 'closed') {
+      this.generation = (this.generation ?? 0) + 1;
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) throw new Error('Web Audio indisponible sur ce navigateur');
       // iOS 17+ : joue même quand l'iPhone est en mode silencieux.
@@ -297,16 +298,25 @@ export class Synth {
     return this.ctx;
   }
 
-  /** iOS coupe le son (appel, notification, autre app, Siri) : on relance dès que possible pendant la lecture. */
+  /** iOS coupe le son (appel, notification, Siri) : on relance dès que possible pendant la lecture. */
   watchInterruptions() {
-    const revive = () => {
-      if (this.keepAlive && this.ctx.state !== 'running') this.ctx.resume().catch(() => {});
-    };
-    this.ctx.addEventListener('statechange', revive);
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) revive();
+    const ctx = this.ctx;
+    ctx.addEventListener('statechange', () => {
+      if (this.keepAlive && ctx === this.ctx && ctx.state !== 'running') ctx.resume().catch(() => {});
     });
-    window.addEventListener('focus', revive);
+  }
+
+  /**
+   * Abandonne le moteur audio actuel. Après un passage en arrière-plan, iOS laisse souvent
+   * un contexte audio muet qui se dit « running » : on en recrée un neuf au prochain toucher.
+   */
+  reset() {
+    if (!this.ctx) return;
+    const old = this.ctx;
+    this.panic();
+    this.ctx = null;
+    this.voices.clear();
+    old.close().catch(() => {});
   }
 
   build() {

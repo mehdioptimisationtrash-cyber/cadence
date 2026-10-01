@@ -262,10 +262,21 @@ desktop.addEventListener('change', () => {
   placePalette();
   render();
 });
+// Quand on quitte l'app : sauvegarde, arrêt de la lecture et abandon du moteur audio (iOS le casse en arrière-plan).
+const leave = () => {
+  saveSession(store.get());
+  player.stop();
+  synth.reset();
+};
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) saveSession(store.get());
+  if (document.hidden) leave();
 });
-window.addEventListener('pagehide', () => saveSession(store.get()));
+window.addEventListener('pagehide', leave);
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted) synth.reset();
+});
+// Diagnostic lisible depuis les tests automatiques.
+window.cadenceAudio = () => ({ state: synth.ctx?.state ?? 'none', generation: synth.generation ?? 0 });
 
 placePalette();
 render();
