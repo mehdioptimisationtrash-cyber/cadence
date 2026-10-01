@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { detectPitch, freqToNote, median, foldIntoRange } from '../js/audio/pitch.js';
+import { detectPitch, freqToNote, median, foldIntoRange, createPitchTracker } from '../js/audio/pitch.js';
 
 const RATE = 48000;
 function tone(freq, { harmonics = [1], noise = 0, size = 2048, amp = 0.4 } = {}) {
@@ -37,4 +37,28 @@ test('note naming helpers', () => {
   assert.equal(median([1, 9, 3, 2, 8]), 3);
   assert.equal(foldIntoRange(93), 81);
   assert.equal(foldIntoRange(40), 52);
+});
+
+test('tracker shows a quiet whistle within ~80 ms, without wrong notes', () => {
+  const tr = createPitchTracker(RATE);
+  const sig = new Float32Array(RATE);
+  for (let i = 0; i < sig.length; i += 1) sig[i] = 0.008 * Math.sin((2 * Math.PI * 1318.5 * i) / RATE) + 0.002 * (Math.random() * 2 - 1);
+  let firstMs = null;
+  const seen = new Set();
+  for (let end = 2048; end < sig.length; end += 800) {
+    const r = tr.push(sig.subarray(end - 2048, end));
+    if (r) { seen.add(r.midi); if (firstMs == null) firstMs = (end / RATE) * 1000; }
+  }
+  assert.ok(firstMs != null && firstMs < 80, `première note à ${firstMs} ms`);
+  assert.deepEqual([...seen], [88]);
+});
+
+test('tracker holds the note through short dropouts and releases after silence', () => {
+  const tr = createPitchTracker(RATE);
+  const on = tone(440);
+  tr.push(on); tr.push(on);
+  assert.equal(tr.push(on).midi, 69);
+  assert.equal(tr.push(new Float32Array(2048)).midi, 69);
+  for (let i = 0; i < 12; i += 1) tr.push(new Float32Array(2048));
+  assert.equal(tr.push(new Float32Array(2048)), null);
 });

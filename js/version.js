@@ -1,2 +1,2 @@
 // Numéro de version affiché dans Outils — à augmenter avec CACHE_VERSION dans sw.js.
-export const APP_VERSION = '10';
+export const APP_VERSION = '11';

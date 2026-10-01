@@ -4,12 +4,12 @@ import { h, icon, iconButton, mount, sym, toggle, toast } from './dom.js';
 import { midiLabel, pc } from '../theory/notes.js';
 import { detectChords } from '../theory/chords.js';
 import { addChord } from '../actions.js';
-import { detectPitch, freqToNote, median, foldIntoRange } from '../audio/pitch.js';
+import { createPitchTracker, foldIntoRange } from '../audio/pitch.js';
 
 const IN_TUNE_CENTS = 20;
-const AUTO_HOLD_MS = 650;
-const PAUSE_AFTER_CAPTURE_MS = 1100;
-const HISTORY = 7;
+const AUTO_HOLD_MS = 380;
+const PAUSE_AFTER_CAPTURE_MS = 550;
+const QUIET_LEVEL = 0.002;
 
 export function createTuner(root, scrim, ctx, { addNote }) {
   let stream = null;
@@ -17,7 +17,7 @@ export function createTuner(root, scrim, ctx, { addNote }) {
   let analyser = null;
   let buffer = null;
   let raf = 0;
-  let readings = [];
+  let tracker = null;
   let current = null; // { midi, cents, freq }
   let inTuneSince = 0;
   let pausedUntil = 0;
@@ -55,7 +55,8 @@ export function createTuner(root, scrim, ctx, { addNote }) {
     addNote(folded);
     lastCaptured = { midi: folded, at: performance.now() };
     pausedUntil = performance.now() + PAUSE_AFTER_CAPTURE_MS;
-    readings = [];
+    tracker?.reset();
+    current = null;
     inTuneSince = 0;
     toast(`${midiLabel(folded, ctx.state.notation)} ajouté à l’accord`);
     renderCollected();
@@ -101,7 +102,8 @@ export function createTuner(root, scrim, ctx, { addNote }) {
     if (!n) {
       els.note.textContent = '—';
       els.cents.textContent = '';
-      els.hint.textContent = now < pausedUntil ? 'Note ajoutée ✓' : 'Siffle, chante ou fredonne une note tenue';
+      els.hint.textContent = now < pausedUntil ? 'Note ajoutée ✓'
+        : level > 0 && level < QUIET_LEVEL ? 'Rapproche-toi du micro' : 'Siffle, chante ou fredonne une note tenue';
       needle.querySelector('.tn-needle').style.transform = 'rotate(0deg)';
       needle.classList.remove('is-tuned');
       els.validate.disabled = true;
@@ -126,19 +128,7 @@ export function createTuner(root, scrim, ctx, { addNote }) {
     for (let i = 0; i < buffer.length; i += 4) sum += buffer[i] * buffer[i];
     level = Math.sqrt(sum / (buffer.length / 4));
     const now = performance.now();
-    const hit = now < pausedUntil ? null : detectPitch(buffer, analyser.context.sampleRate);
-    readings = [...readings, hit ? freqToNote(hit.freq).exact : null].slice(-HISTORY);
-    const valid = readings.filter((r) => r != null);
-    // Note retenue si les dernières lectures concordent (évite les sauts parasites).
-    if (valid.length >= 4) {
-      const mid = median(valid);
-      const close = valid.filter((r) => Math.abs(r - mid) < 0.6);
-      if (close.length >= 4) {
-        const exact = median(close);
-        const midi = Math.round(exact);
-        current = { midi, cents: Math.round((exact - midi) * 100), freq: 440 * 2 ** ((exact - 69) / 12) };
-      } else current = null;
-    } else if (!hit) current = null;
+    current = now < pausedUntil ? null : tracker.push(buffer);
 
     const tuned = current && Math.abs(current.cents) <= IN_TUNE_CENTS;
     if (tuned && auto()) {
@@ -162,6 +152,7 @@ export function createTuner(root, scrim, ctx, { addNote }) {
       analyser = ac.createAnalyser();
       analyser.fftSize = 2048;
       buffer = new Float32Array(analyser.fftSize);
+      tracker = createPitchTracker(ac.sampleRate);
       source.connect(analyser);
     } catch (err) {
       error = err?.name === 'NotAllowedError'
@@ -180,7 +171,7 @@ export function createTuner(root, scrim, ctx, { addNote }) {
     source = null;
     analyser = null;
     current = null;
-    readings = [];
+    tracker = null;
     if (navigator.audioSession) {
       try { navigator.audioSession.type = 'playback'; } catch { /* ancien Safari */ }
     }

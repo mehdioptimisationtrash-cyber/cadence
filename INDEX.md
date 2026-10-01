@@ -31,6 +31,7 @@ PWA (iPhone + Mac) de composition harmonique façon Scaler / Chord Wizard : prog
 - 2026-10-02 : accords sur une autre basse (v8, `js/theory/slash.js`) : section palette (couleurs de basse, renversements, pédale), suggestions à basse conjointe, variantes + choix rapide de basse dans l'inspecteur, curseur « Basse fluide » du générateur (programmation dynamique), 8 progressions « Basses mobiles », chiffrage romain avec basse (IV/V).
 - 2026-10-02 : étouffement des voix (v9) : `synth.play(..., choke)` — en lecture un nouvel accord coupe le précédent (token = index d'accord), mélodie et basse monophoniques, chaque écoute (accord ou note) coupe la précédente. Vérifié par rendu hors ligne (résidu 0).
 - 2026-10-02 : clavier jouable (v10, `js/ui/keybed.js`) : multitouch, nom de note/accord en direct, « Maintenir » pour construire un accord (`ui.builder`), saisie au clavier du Mac (positions physiques), octaves ◀ ▶ sur mobile. Accordeur micro (`js/ui/tuner.js` + détection NSDF `js/audio/pitch.js`) : aiguille ±50 cents, validation manuelle ou auto, notes ajoutées à l'accord en construction. Détecteur de l'onglet Outils supprimé (remplacé par le clavier).
+- 2026-10-02 : accordeur accéléré (v11) : détection YIN (seuil de volume 0,0015 au lieu de 0,012, qui ignorait les sons d'un vrai micro), suivi `createPitchTracker` (note confirmée sur 2 lectures, aiguille lissée, tenue pendant les micro-coupures), validation auto 380 ms. 60–90 ms jusqu'à l'affichage. Banc : `node tools/pitch-latency.mjs`.
 
 ## TODO / idées
 - Retours de Mehdi après essai sur iPhone.
