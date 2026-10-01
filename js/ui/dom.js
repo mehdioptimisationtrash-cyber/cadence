@@ -41,6 +41,8 @@ const PATHS = {
   tools: '<path d="M4 20h16M7 16V9M12 16V5M17 16v-4"/>',
   arrowLeft: '<path d="M15 6l-6 6 6 6"/>',
   arrowRight: '<path d="M9 6l6 6-6 6"/>',
+  arrowUp: '<path d="M6 15l6-6 6 6"/>',
+  arrowDown: '<path d="M6 9l6 6 6-6"/>',
   ear: '<path d="M7 9a5 5 0 0 1 10 0c0 3-3 4-3 7a3 3 0 0 1-6 0"/><path d="M10 9a2 2 0 0 1 4 0"/>',
   edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
   file: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 17v-4l4-1v4"/>',

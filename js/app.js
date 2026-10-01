@@ -10,7 +10,7 @@ import { Synth } from './audio/synth.js';
 import { Player } from './audio/player.js';
 import { MidiOut } from './midi/webmidi.js';
 import { createContext } from './ui/context.js';
-import { h, icon, mount, segmented, toast } from './ui/dom.js';
+import { h, icon, mount, toast } from './ui/dom.js';
 import { renderTopbar } from './ui/topbar.js';
 import { renderStageHead, renderTimeline, paintPlayhead } from './ui/timeline.js';
 import { renderInspector } from './ui/inspector.js';
@@ -22,6 +22,7 @@ import { renderToolsPanel } from './ui/toolsPanel.js';
 import { renderKeySheet } from './ui/keysheet.js';
 import { createKeyboard } from './ui/keyboard.js';
 import { createPianoRoll } from './ui/pianoroll.js';
+import { createNoteEditor } from './ui/noteEditor.js';
 
 const $ = (id) => document.getElementById(id);
 const desktop = window.matchMedia('(min-width: 1100px)');
@@ -95,6 +96,7 @@ function renderTabs(state) {
 
 const keyboard = createKeyboard($('keyboard'), { low: 36, high: 84 });
 const roll = createPianoRoll($('roll'), $('roll-wrap'), ctx);
+const editor = createNoteEditor($('note-editor'), ctx);
 let sheetOpen = false;
 
 function openKeySheet() {
@@ -111,36 +113,16 @@ function renderSheet() {
   if (sheetOpen) renderKeySheet($('keysheet'), ctx, { close: closeKeySheet });
 }
 
-// Durée des notes ajoutées, en temps (les glyphes blanche/ronde n'existent pas dans les polices de l'iPhone).
-const NOTE_LENGTHS = [{ value: 0.5, label: '½ t', title: 'croche' }, { value: 1, label: '1 t', title: 'noire' }, { value: 2, label: '2 t', title: 'blanche' }, { value: 4, label: '4 t', title: 'ronde' }];
-
-function renderRollHead(state) {
-  const track = state.ui.editTrack ?? null;
-  $('roll-wrap').classList.toggle('is-editing', Boolean(track));
-  $('roll-head').classList.toggle('is-editing', Boolean(track));
-  if (!track) {
-    mount($('roll-head'),
-      h('span', { class: 'eyebrow' }, 'Arrangement'),
-      h('div', { class: 'roll-legend' },
-        h('span', {}, h('i', { style: { background: 'var(--fn-T)' } }), 'accords'),
-        h('span', {}, h('i', { style: { background: 'var(--trk-bass)' } }), 'basse'),
-        h('span', {}, h('i', { style: { background: 'var(--trk-melody)' } }), 'mélodie')),
-      h('div', { class: 'spacer' }),
-      h('button', { class: 'pill edit-pill', onClick: () => ctx.startEdit('melody'), title: 'Modifier la mélodie à la main' }, icon('edit'), ' Mélodie'),
-      h('button', { class: 'pill edit-pill', onClick: () => ctx.startEdit('bass'), title: 'Modifier la basse à la main' }, icon('edit'), ' Basse'));
-    return;
-  }
+function renderRollHead() {
   mount($('roll-head'),
-    h('div', { class: 'edit-bar' },
-      h('span', { class: 'eyebrow' }, 'Modifier'),
-      segmented([{ value: 'melody', label: 'Mélodie' }, { value: 'bass', label: 'Basse' }], track, (t) => ctx.startEdit(t), { label: 'Piste modifiée' }),
-      segmented(NOTE_LENGTHS, state.ui.noteLength ?? 0.5, (noteLength) => ctx.setUi({ noteLength }), { label: 'Durée des notes ajoutées' }),
-      h('button', {
-        class: 'pill', 'aria-pressed': String(state.ui.snapScale !== false), title: 'Garder les notes dans la gamme',
-        onClick: () => ctx.setUi({ snapScale: state.ui.snapScale === false }),
-      }, 'Aimant gamme'),
-      h('button', { class: 'btn primary', onClick: () => ctx.startEdit(null) }, 'Terminé')),
-    h('p', { class: 'edit-hint' }, 'Touche le vide pour ajouter · touche une note pour l’effacer · fais-la glisser pour la déplacer.'));
+    h('span', { class: 'eyebrow' }, 'Arrangement'),
+    h('div', { class: 'roll-legend' },
+      h('span', {}, h('i', { style: { background: 'var(--fn-T)' } }), 'accords'),
+      h('span', {}, h('i', { style: { background: 'var(--trk-bass)' } }), 'basse'),
+      h('span', {}, h('i', { style: { background: 'var(--trk-melody)' } }), 'mélodie')),
+    h('div', { class: 'spacer' }),
+    h('button', { class: 'pill edit-pill', onClick: () => ctx.startEdit('melody'), title: 'Modifier la mélodie note par note' }, icon('edit'), ' Mélodie'),
+    h('button', { class: 'pill edit-pill', onClick: () => ctx.startEdit('bass'), title: 'Modifier la basse note par note' }, icon('edit'), ' Basse'));
 }
 
 const PANELS = {
@@ -158,7 +140,8 @@ function render() {
   renderTimeline($('timeline'), ctx, { onAdd: () => ctx.setUi({ tab: 'palette' }) });
   renderInspector($('inspector'), ctx, { scrim: $('scrim') });
   renderTabs(state);
-  renderRollHead(state);
+  renderRollHead();
+  editor.sync();
   const visible = new Set([activeTab(state)]);
   if (desktop.matches) visible.add('palette');
   visible.forEach((id) => PANELS[id]($(`panel-${id}`), ctx));
@@ -210,6 +193,7 @@ function paintFrame() {
   const state = store.get();
   const pos = player.playing ? player.position() : null;
   const own = pos != null && !player.previewing;
+  editor.paint(own ? pos : null);
   paintPlayhead($('timeline'), state.chords, own ? pos : null);
   if (pos != null) {
     roll.draw(own ? pos : null);
@@ -231,6 +215,7 @@ const typing = (el) => el && (['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagNam
 
 document.addEventListener('keydown', (e) => {
   if (typing(e.target)) return;
+  if (editor.handleKey(e)) return;
   const state = store.get();
   const meta = e.metaKey || e.ctrlKey;
   if (e.code === 'Space') {
@@ -257,7 +242,6 @@ document.addEventListener('keydown', (e) => {
     ctx.audition(state.chords[next]);
   } else if (e.key === 'Escape') {
     if (sheetOpen) closeKeySheet();
-    else if (state.ui.editTrack) ctx.startEdit(null);
     else ctx.set((s) => ({ ...s, selected: null }), { history: false });
   }
 });

@@ -683,7 +683,7 @@ select.select { -webkit-appearance: none; appearance: none; background-image: li
   position: fixed;
   left: 50%;
   bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 14px);
-  z-index: 60;
+  z-index: 80;
   transform: translate(-50%, 20px);
   opacity: 0;
   padding: 10px 16px;
@@ -729,13 +729,64 @@ select.select { -webkit-appearance: none; appearance: none; background-image: li
 .drag-tile.is-disabled { border-color: var(--line-strong); background: var(--surface); cursor: default; }
 .drag-tile.is-disabled .drag-icon { background: var(--surface-3); color: var(--muted); }
 
-.stage-head.is-editing { display: block; }
 .edit-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .edit-bar .btn.primary { margin-left: auto; padding: 8px 14px; }
 .edit-bar .seg button { padding: 6px 10px; }
 .edit-hint { margin: 8px 0 0; font-size: var(--text-xs); color: var(--muted); }
 .edit-pill { display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px; font-size: var(--text-xs); }
 .edit-pill svg.icon { width: 14px; height: 14px; }
-.roll-wrap.is-editing { box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent) 50%, transparent); }
 @media (max-width: 520px) { .roll-legend { display: none; } }
 .callout { flex-wrap: wrap; }
+
+/* ---------- Éditeur de notes plein écran ---------- */
+.roll-wrap canvas { cursor: pointer; }
+body.editor-open { overflow: hidden; }
+.note-editor {
+  position: fixed; inset: 0; z-index: 70;
+  display: none; flex-direction: column;
+  background: var(--bg);
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.note-editor.is-open { display: flex; }
+.ne-toolbar { display: grid; gap: 8px; padding: 10px 12px 8px; border-bottom: 1px solid var(--line); background: var(--bg-2); }
+.ne-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ne-done { padding: 9px 16px; }
+.ne-label { font-size: var(--text-xs); color: var(--faint); text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700; }
+.ne-pencil {
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 13px; border-radius: 999px;
+  border: 1.5px solid var(--line-strong); font-size: var(--text-sm); font-weight: 700; color: var(--muted);
+  transition: all var(--fast);
+}
+.ne-pencil svg.icon { width: 16px; height: 16px; }
+.ne-pencil.is-on { background: var(--trk-melody); border-color: var(--trk-melody); color: var(--accent-ink); }
+.ne-zoom { display: flex; gap: 2px; margin-left: auto; padding: 2px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); }
+.play-btn.small { width: 40px; height: 40px; box-shadow: 0 0 0 4px var(--accent-soft); }
+.play-btn.small svg.icon { width: 18px; height: 18px; }
+.ne-stage { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+.ne-canvas { display: block; touch-action: none; user-select: none; -webkit-user-select: none; }
+.ne-hint {
+  position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%);
+  padding: 12px 16px; border-radius: 14px; background: rgba(26, 22, 33, 0.92); border: 1px solid var(--line-strong);
+  color: var(--muted); font-size: var(--text-sm); text-align: center; pointer-events: none; max-width: 80%;
+}
+.ne-hint[hidden] { display: none; }
+.ne-selbar {
+  border-top: 1px solid var(--line); background: var(--bg-2);
+  padding: 8px 10px calc(8px + var(--safe-bottom));
+  min-height: 52px;
+}
+.ne-help { margin: 6px 4px; font-size: var(--text-xs); color: var(--faint); text-align: center; }
+.ne-selbar.is-on { display: grid; gap: 6px; }
+.ne-sel-title { display: flex; gap: 10px; align-items: baseline; padding: 0 4px; }
+.ne-sel-title b { font-family: var(--font-display); font-size: 1.4rem; font-weight: 400; color: var(--trk-melody); }
+.ne-sel-title span { font-size: var(--text-xs); color: var(--muted); }
+.ne-actions { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+.ne-act {
+  display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 7px 2px; border-radius: 12px;
+  background: var(--surface); border: 1px solid var(--line); color: var(--text); font-size: 0.62rem; font-weight: 600;
+}
+.ne-act:active { transform: scale(0.95); background: var(--surface-3); }
+.ne-act svg.icon { width: 18px; height: 18px; }
+.ne-act.danger { color: var(--danger); }
+@media (max-width: 420px) { .ne-act span { font-size: 0.56rem; } }
+@media (min-width: 900px) { .ne-actions { grid-template-columns: repeat(8, minmax(0, 96px)); } }
