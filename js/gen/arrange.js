@@ -1,4 +1,4 @@
-// Transforme l'état (progression + réglages + mélodie) en une liste de notes datées.
+// Transforme l'état (progression + réglages) en une liste de notes datées.
 import { chordPitchClasses } from '../theory/chords.js';
 import { voiceProgression, bassNote } from '../theory/voicing.js';
 import { chordEvents, bassEvents, applySwing } from './patterns.js';
@@ -38,10 +38,10 @@ export function patternBassNotes(state, { blockChords = false } = {}) {
 /**
  * @param {object} state
  * @param {{ blockChords?: boolean }} [opts] blockChords : accords plaqués (export MIDI « éditable »)
- * @returns {Array<{track:'chords'|'bass'|'melody', midi:number, start:number, dur:number, vel:number, chord:number}>}
+ * @returns {Array<{track:'chords'|'bass', midi:number, start:number, dur:number, vel:number, chord:number}>}
  */
 export function arrange(state, { blockChords = false } = {}) {
-  const { chords, arrangement, melody } = state;
+  const { chords, arrangement } = state;
   const bassLine = state.bassLine ?? { custom: false, notes: [] };
   if (!chords.length) return [];
   const voicings = voiceProgression(chords, arrangement.voicing);
@@ -56,18 +56,13 @@ export function arrange(state, { blockChords = false } = {}) {
   });
   const end = totalBeats(chords);
   const chordAt = (t) => Math.max(0, starts.findLastIndex((s) => s <= t));
-  // Lignes écrites (mélodie, basse à la main) : jouées EXACTEMENT comme dans l'éditeur, sans swing.
+  // Basse écrite à la main : jouée EXACTEMENT comme dans l'éditeur, sans swing.
   // Le swing ne s'applique qu'aux motifs automatiques.
   const bass = bassLine.custom ? bassLine.notes : patternBassNotes(state, { blockChords });
   const bassSwing = bassLine.custom ? 0 : swing;
   bass.filter((n) => n.start < end).forEach((n) => events.push({
     track: 'bass', midi: n.midi, start: applySwing(n.start, bassSwing), dur: Math.min(n.dur, end - n.start), vel: n.vel, chord: chordAt(n.start),
   }));
-  if (melody.enabled) {
-    melody.notes.filter((n) => n.start < end).forEach((n) => events.push({
-      track: 'melody', midi: n.midi, start: n.start, dur: Math.min(n.dur, end - n.start), vel: n.vel, chord: -1,
-    }));
-  }
   return events.sort((a, b) => a.start - b.start);
 }
 

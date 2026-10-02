@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { voiceChord, voiceProgression, bassNote } from '../js/theory/voicing.js';
 import { chordEvents, bassEvents, applySwing, CHORD_PATTERNS, BASS_PATTERNS } from '../js/gen/patterns.js';
 import { TEMPLATES, templateChords, generateProgression, MOODS } from '../js/gen/progressions.js';
-import { generateMelody, revoiceMelody, MELODY_STYLES } from '../js/gen/melody.js';
 import { getScale } from '../js/theory/scales.js';
 import { pc } from '../js/theory/notes.js';
 
@@ -63,20 +62,6 @@ test('generator respects length and is reproducible', () => {
   assert.equal(penta.chords.length, 4);
 });
 
-test('melody fits range, timeline and mostly the scale', () => {
-  const key = { root: 0, scale: 'major' };
-  const chords = templateChords(TEMPLATES[0], 0);
-  const scalePcs = getScale('major').iv;
-  for (const s of MELODY_STYLES) {
-    const notes = generateMelody({ chords, key, params: { style: s.id }, seed: 7 });
-    assert.ok(notes.length >= 6, s.id);
-    assert.ok(notes.every((n) => n.start >= 0 && n.start + n.dur <= 16.001 && n.midi >= 55 && n.midi <= 88), s.id);
-    assert.ok(notes.every((n) => scalePcs.includes(pc(n.midi))), s.id);
-  }
-  const notes = generateMelody({ chords, key, seed: 3 });
-  const again = revoiceMelody(notes, { chords, key, seed: 9 });
-  assert.deepEqual(again.map((n) => n.start), notes.map((n) => n.start));
-});
 
 test('slash chords: groups, smooth bass and stepwise suggestions', async () => {
   const { slashGroups, smoothBassLine } = await import('../js/theory/slash.js');

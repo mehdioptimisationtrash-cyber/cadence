@@ -1,7 +1,6 @@
-// Mélodie et basse écrites face aux modifications de la progression.
+// Basse écrite face aux modifications de la progression.
 // 1. Les notes suivent leur accord (insertion, suppression, déplacement, durée).
-// 2. La mélodie se recale sur un accord dont l'harmonie change (pas de frottement).
-// 3. La basse écrite n'est JAMAIS retouchée, sauf si l'on choisit explicitement une autre basse
+// 2. La basse écrite n'est JAMAIS retouchée, sauf si l'on choisit explicitement une autre basse
 //    pour l'accord (renversement, accord « slash », retour à la fondamentale).
 import { pc } from '../theory/notes.js';
 import { getScale } from '../theory/scales.js';
@@ -72,16 +71,6 @@ function follow(notes, oldChords, newChords) {
 }
 
 const noteEndWithin = (n, host) => n.start + n.dur <= host.end + EPS;
-
-/** Mélodie : suit ses accords ; sur un accord modifié, notes fortes sur l'accord, sans frottement. */
-export function adaptMelody(notes, oldChords, newChords, key) {
-  return follow(notes, oldChords, newChords).map(({ note, was, now }) => {
-    if (!now || isRest(now) || sameHarmony(was, now)) return note;
-    const tones = chordPitchClasses(now);
-    const target = isStrong(note.start) ? tones : allowedPitchClasses(now, key);
-    return target.includes(pc(note.midi)) ? note : { ...note, midi: nearest(note.midi, target) };
-  });
-}
 
 /** Basse écrite : suit ses accords, mais ses notes ne changent que si on change la basse de l'accord. */
 export function adaptBass(notes, oldChords, newChords) {

@@ -5,7 +5,6 @@ const PPQ = 480;
 const TRACK_INFO = {
   chords: { name: 'Accords', channel: 0, program: 4 },
   bass: { name: 'Basse', channel: 1, program: 33 },
-  melody: { name: 'Mélodie', channel: 2, program: 80 },
 };
 
 function vlq(value) {

@@ -5,17 +5,12 @@ import { qualityLevel } from './theory/chords.js';
 import { diatonicChord, isDiatonic, degreeOf } from './theory/harmony.js';
 import { newId } from './state.js';
 import { patternBassNotes } from './gen/arrange.js';
-import { adaptMelody, adaptBass } from './gen/adapt.js';
+import { adaptBass } from './gen/adapt.js';
 
-// Toute modification de la progression recale la mélodie et la basse écrites sur les nouveaux accords.
+// Toute modification de la progression : la basse écrite suit ses accords.
 const withChords = (state, chords) => ({
   ...state,
   chords,
-  melody: {
-    ...state.melody,
-    notes: adaptMelody(state.melody.notes, state.chords, chords, state.key),
-    stale: state.melody.notes.length > 0,
-  },
   bassLine: {
     ...state.bassLine,
     notes: state.bassLine?.custom ? adaptBass(state.bassLine.notes, state.chords, chords) : state.bassLine.notes,
@@ -38,13 +33,11 @@ export function releaseBass(state, bassPattern = state.arrangement.bassPattern) 
   };
 }
 
-export const trackNotes = (state, track) => (track === 'bass' ? state.bassLine.notes : state.melody.notes);
+export const trackNotes = (state) => state.bassLine.notes;
 
 export function setTrackNotes(state, track, notes) {
   const sorted = [...notes].sort((a, b) => a.start - b.start);
-  return track === 'bass'
-    ? { ...state, bassLine: { ...state.bassLine, custom: true, notes: sorted } }
-    : { ...state, melody: { ...state.melody, enabled: true, notes: sorted } };
+  return { ...state, bassLine: { ...state.bassLine, custom: true, notes: sorted } };
 }
 
 export function makeChord({ root, quality, bass = null, beats = 4, inversion = null, octave = 0, rest = false }) {
@@ -102,7 +95,7 @@ export function replaceProgression(state, chords, scale = state.key.scale) {
 
 export function clearProgression(state) {
   return {
-    ...state, chords: [], selected: null, melody: { ...state.melody, notes: [], stale: false }, bassLine: { custom: false, stale: false, notes: [] },
+    ...state, chords: [], selected: null, bassLine: { custom: false, stale: false, notes: [] },
   };
 }
 
@@ -119,7 +112,6 @@ export function transpose(state, semis) {
     ...state,
     key: { ...state.key, root: pc(state.key.root + semis) },
     chords: state.chords.map((c) => (c.rest ? c : { ...c, root: pc(c.root + semis), bass: c.bass == null ? null : pc(c.bass + semis) })),
-    melody: { ...state.melody, notes: state.melody.notes.map((n) => shiftNote(n, semis)) },
     bassLine: { ...state.bassLine, notes: state.bassLine.notes.map((n) => shiftNote(n, semis)) },
   };
 }
@@ -133,7 +125,7 @@ function mapPitchToMode(p, oldKey, newKey) {
 }
 
 /**
- * Change de tonalité. transposeAll : déplace accords et mélodie avec la tonique.
+ * Change de tonalité. transposeAll : déplace accords et basse écrite avec la tonique.
  * adaptMode : quand le mode change, chaque accord de la gamme devient celui du même degré dans le nouveau mode.
  */
 export function setKey(state, { root = state.key.root, scale = state.key.scale }, { transposeAll = true, adaptMode = true } = {}) {
@@ -153,7 +145,6 @@ export function setKey(state, { root = state.key.root, scale = state.key.scale }
     const bass = c.bass == null ? null : pc(mapPitchToMode(c.bass, oldKey, newKey));
     return { ...c, root: mapped.root, quality: mapped.quality, bass };
   });
-  const notes = next.melody.notes.map((n) => ({ ...n, midi: mapPitchToMode(n.midi, oldKey, newKey) }));
   const bass = next.bassLine.notes.map((n) => ({ ...n, midi: mapPitchToMode(n.midi, oldKey, newKey) }));
-  return { ...next, key: newKey, chords, melody: { ...next.melody, notes }, bassLine: { ...next.bassLine, notes: bass } };
+  return { ...next, key: newKey, chords, bassLine: { ...next.bassLine, notes: bass } };
 }

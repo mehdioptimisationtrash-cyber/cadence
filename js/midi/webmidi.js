@@ -1,5 +1,5 @@
 // Sortie MIDI en direct (Chrome / Edge sur Mac : vers Logic, Ableton… via le bus IAC).
-const CHANNEL = { chords: 0, bass: 1, melody: 2 };
+const CHANNEL = { chords: 0, bass: 1 };
 
 export class MidiOut {
   constructor() {

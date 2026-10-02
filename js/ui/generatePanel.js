@@ -1,19 +1,12 @@
 // Générateur par ambiance + bibliothèque de progressions célèbres.
 import { h, sym, icon, mount, segmented, section, slider, toggle, toast } from './dom.js';
 import { MOODS, GENRES, TEMPLATES, templateChords, generateProgression } from '../gen/progressions.js';
-import { generateMelody } from '../gen/melody.js';
 import { getScale } from '../theory/scales.js';
 import { replaceProgression } from '../actions.js';
 import { sanitizeSong } from '../state.js';
 
 const LENGTHS = [3, 4, 6, 8].map((v) => ({ value: v, label: String(v) }));
 const BEATS = [{ value: 2, label: '½ mes.' }, { value: 4, label: '1 mes.' }, { value: 8, label: '2 mes.' }];
-
-function withMelody(state) {
-  if (!state.melody.enabled || !state.ui.autoMelody) return state;
-  const notes = generateMelody({ chords: state.chords, key: state.key, params: state.melody.params, seed: Date.now() });
-  return { ...state, melody: { ...state.melody, notes, stale: false } };
-}
 
 export function renderGeneratePanel(container, ctx) {
   const s = ctx.state;
@@ -24,7 +17,7 @@ export function renderGeneratePanel(container, ctx) {
       key: s.key, level: s.level, moodId: g.mood, length: g.length, beatsPerChord: g.beatsPerChord,
       audace: g.audace, startOnTonic: g.startOnTonic, adaptScale: g.adaptScale, smoothBass: g.smoothBass, seed: Date.now(),
     });
-    ctx.set((st) => withMelody(replaceProgression(st, result.chords, result.scale)));
+    ctx.set((st) => replaceProgression(st, result.chords, result.scale));
     const after = ctx.state;
     if (ctx.player.playing) ctx.player.update(after);
     toast(`${MOODS.find((m) => m.id === g.mood).label} · ${after.chords.map((c) => ctx.label(c)).join(' – ')}`);
@@ -35,7 +28,7 @@ export function renderGeneratePanel(container, ctx) {
   const useTemplate = (t) => {
     ctx.player.stop();
     const scale = getScale(t.mode).id;
-    ctx.set((st) => withMelody(replaceProgression({ ...st, ui: { ...st.ui, previewing: null } }, templateChords(t, st.key.root), scale)));
+    ctx.set((st) => replaceProgression({ ...st, ui: { ...st.ui, previewing: null } }, templateChords(t, st.key.root), scale));
     toast(`« ${t.name} » chargée`);
   };
   const preview = (t) => {
@@ -45,7 +38,7 @@ export function renderGeneratePanel(container, ctx) {
       return;
     }
     const temp = sanitizeSong({
-      ...s, key: { ...s.key, scale: t.mode }, chords: templateChords(t, s.key.root), loop: false, melody: { ...s.melody, enabled: false },
+      ...s, key: { ...s.key, scale: t.mode }, chords: templateChords(t, s.key.root), loop: false, bassLine: { custom: false, notes: [] },
     });
     ctx.player.stop();
     ctx.player.start({ ...temp, ui: s.ui, selected: null });
@@ -77,8 +70,7 @@ export function renderGeneratePanel(container, ctx) {
     slider({ label: 'Basse fluide (renversements)', value: g.smoothBass, ends: ['Fondamentales', 'Pas à pas'], onCommit: (smoothBass) => setGen({ smoothBass }) }),
     h('div', { class: 'section' },
       toggle('Adapter la gamme à l’ambiance', g.adaptScale, (adaptScale) => setGen({ adaptScale }), `ex. Épique → ${getScale(MOODS.find((m) => m.id === 'epique').scale).name.toLowerCase()}`),
-      toggle('Commencer sur la tonique', g.startOnTonic, (startOnTonic) => setGen({ startOnTonic })),
-      toggle('Mélodie automatique', Boolean(s.ui.autoMelody), (autoMelody) => ctx.setUi({ autoMelody }), 'compose aussi une mélodie à chaque tirage')),
+      toggle('Commencer sur la tonique', g.startOnTonic, (startOnTonic) => setGen({ startOnTonic }))),
     h('div', { class: 'section' }, h('button', { class: 'btn primary big', onClick: run }, icon('dice'), 'Générer une progression')),
     section('Progressions célèbres', `en ${ctx.note(s.key.root)}`,
       h('div', { class: 'pills', style: { marginBottom: '10px' } }, GENRES.map((gn) => h('button', {

@@ -46,11 +46,6 @@ await step('template preview + use', async () => {
   await page.waitForTimeout(300);
   console.log('     ', await page.locator('.card-sym').allTextContents());
 });
-await step('melody', async () => {
-  await page.click('#tabbar .tab:has-text("Mélodie")');
-  await page.click('#panel-melody .btn.big');
-  await page.screenshot({ path: `${SP}/m-melody.png` });
-});
 await step('sound panel', async () => {
   await page.click('#tabbar .tab:has-text("Son")');
   await page.click('.pill:has-text("Arpège ↑")');

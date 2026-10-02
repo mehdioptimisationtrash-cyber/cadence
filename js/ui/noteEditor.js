@@ -1,4 +1,4 @@
-// Éditeur de notes plein écran (mélodie ou basse), pensé pour le doigt comme pour la souris.
+// Éditeur de la basse en plein écran, pensé pour le doigt comme pour la souris.
 // Gestes : glisser dans le vide = se déplacer · pincer = zoomer · toucher une note = la sélectionner ·
 // glisser une note = la déplacer · poignée de droite = la durée · crayon (ou double-toucher) = ajouter.
 import { h, icon, iconButton, segmented, mount } from './dom.js';
@@ -11,14 +11,14 @@ import {
   placeNote, updateNote, removeNote, duplicateNote, stepPitch, snapBeat, floorBeat, findNote, sameNote,
 } from '../gen/noteEdit.js';
 
-const RANGES = { melody: [48, 96], bass: [24, 64] };
+const RANGES = { bass: [24, 64] };
 const KEYS_W = 54;
 const RULER_H = 34;
 const MOVE_PX = 7;
 const DOUBLE_TAP_MS = 320;
 const GRIDS = [{ value: 1, label: '1/4' }, { value: 0.5, label: '1/8' }, { value: 0.25, label: '1/16' }];
 const FN_COLOR = { T: '#5fd3b0', SD: '#f2c14e', D: '#ff6b5a', sec: '#ff7ab8', borrow: '#a78bfa', rest: '#6f687a' };
-const TRACK_COLOR = { melody: '#7ee3ff', bass: '#ffb547' };
+const TRACK_COLOR = { bass: '#ffb547', chords: '#a69fae' };
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 export function createNoteEditor(root, ctx) {
@@ -53,7 +53,7 @@ export function createNoteEditor(root, ctx) {
   // La piste éditée est-elle réellement entendue ?
   const silent = () => {
     const s = state();
-    return s.arrangement.muted[openTrack] || (openTrack === 'melody' && !s.melody.enabled);
+    return s.arrangement.muted[openTrack];
   };
 
   function rows() {
@@ -162,8 +162,8 @@ export function createNoteEditor(root, ctx) {
     g.fillStyle = 'rgba(0,0,0,0.45)';
     g.fillRect(x(total), RULER_H, w, hgt);
 
-    // Repère : l'autre piste en fantôme, telle qu'elle est réellement jouée (motif de basse compris).
-    const other = openTrack === 'melody' ? 'bass' : 'melody';
+    // Repère : les notes des accords en fantôme, telles qu'elles sont réellement jouées.
+    const other = 'chords';
     g.globalAlpha = 0.22;
     g.fillStyle = TRACK_COLOR[other];
     arrange(s).filter((e) => e.track === other).forEach((n) => {
@@ -261,7 +261,7 @@ export function createNoteEditor(root, ctx) {
     ctx.set((st) => setTrackNotes(st, openTrack, list));
   };
   const audition = (midi) => ctx.playNotes([midi], openTrack);
-  const newLength = () => (openTrack === 'bass' ? Math.max(grid(), 1) : Math.max(grid(), 0.5));
+  const newLength = () => Math.max(grid(), 1);
 
   function addAt(px, py) {
     const r = clamp(rowAt(py), 0, rowCache.length - 1);
@@ -491,7 +491,7 @@ export function createNoteEditor(root, ctx) {
     mount(toolbar,
       h('div', { class: 'ne-row' },
         h('button', { class: 'btn primary ne-done', onClick: () => ctx.startEdit(null) }, 'Terminé'),
-        segmented([{ value: 'melody', label: 'Mélodie' }, { value: 'bass', label: 'Basse' }], openTrack, (t) => ctx.startEdit(t), { label: 'Piste' }),
+        h('span', { class: 'ne-title' }, 'Basse'),
         h('div', { class: 'spacer' }),
         iconButton('undo', 'Annuler (⌘Z)', () => ctx.store.undo(), { attrs: { disabled: !ctx.store.canUndo() } }),
         iconButton('redo', 'Rétablir (⇧⌘Z)', () => ctx.store.redo(), { attrs: { disabled: !ctx.store.canRedo() } }),
@@ -515,12 +515,11 @@ export function createNoteEditor(root, ctx) {
           iconButton('plus', 'Zoomer', () => { const { w, hgt } = size(); zoomAt(w / 2, hgt / 2, 1.25, 1.14); }, { class: 'small' }))));
     if (silent()) {
       toolbar.append(h('div', { class: 'ne-warn' },
-        h('span', {}, openTrack === 'melody' && !s.melody.enabled ? 'La mélodie est désactivée : elle ne sera pas jouée.' : 'Cette piste est coupée : elle ne sera pas jouée.'),
+        h('span', {}, 'La basse est coupée : elle ne sera pas jouée.'),
         h('button', {
           class: 'btn primary',
           onClick: () => ctx.set((st) => ({
             ...st,
-            melody: openTrack === 'melody' ? { ...st.melody, enabled: true } : st.melody,
             arrangement: { ...st.arrangement, muted: { ...st.arrangement.muted, [openTrack]: false } },
           }), { history: false }),
         }, 'Réactiver')));

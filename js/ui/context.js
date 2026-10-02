@@ -31,7 +31,7 @@ export function createContext({ store, player, synth, midiOut }) {
     },
     set: (fn, opts) => store.set(fn, opts),
     setUi: (patch) => store.set((s) => ({ ...s, ui: { ...s.ui, ...patch } }), { history: false }),
-    /** Ouvre l'édition à la main d'une piste ('melody' | 'bass'), ou la ferme (null). */
+    /** Ouvre l'éditeur de la basse ('bass'), ou le ferme (null). */
     startEdit(track) {
       store.set((s) => {
         const next = { ...s, selected: null, ui: { ...s.ui, editTrack: track } };

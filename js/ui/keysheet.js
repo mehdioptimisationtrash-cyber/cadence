@@ -122,7 +122,7 @@ function heardCard(ctx, apply) {
 
 function playScale(ctx, root, scaleId) {
   const notes = [...getScale(scaleId).iv, 12].map((iv) => 60 + root + iv);
-  playLater(notes.map((m, i) => [i * 190, () => ctx.playNotes([m], 'melody')]));
+  playLater(notes.map((m, i) => [i * 190, () => ctx.playNotes([m], 'chords')]));
 }
 
 export function renderKeySheet(container, ctx, { close }) {

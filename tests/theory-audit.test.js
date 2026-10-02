@@ -7,7 +7,6 @@ import { QUALITY_LIST, chordPitchClasses, chordSymbol } from '../js/theory/chord
 import { diatonicChords, romanNumeral, suggestNext } from '../js/theory/harmony.js';
 import { voiceChord, voiceProgression, VOICINGS } from '../js/theory/voicing.js';
 import { TEMPLATES, templateChords, generateProgression, MOODS } from '../js/gen/progressions.js';
-import { generateMelody } from '../js/gen/melody.js';
 import { arrange } from '../js/gen/arrange.js';
 import { allowedPitchClasses } from '../js/gen/adapt.js';
 import { sanitizeSong, DEFAULT_SONG } from '../js/state.js';
@@ -85,7 +84,7 @@ test('progressions célèbres : bonnes fondamentales dans les 12 tonalités', ()
   assert.deepEqual(templateChords(find('Canon, basse qui descend'), 0).map((c) => chordSymbol(c, sp)), ['C', 'G/B', 'Am', 'Em/G', 'F', 'C/E', 'Dm/F', 'G']);
 });
 
-test('lecture : chaque note jouée appartient à l’accord affiché (générateur, 8 ambiances × 20 tirages)', () => {
+test('lecture : chaque note jouée appartient à l’accord affiché (accords et basse — générateur, 8 ambiances × 20 tirages)', () => {
   for (const mood of MOODS) for (let seed = 1; seed <= 20; seed += 1) {
     const key = { root: seed % 12, scale: 'major' };
     const gen = generateProgression({ key, moodId: mood.id, length: 6, seed, audace: 0.8, smoothBass: 0.7, adaptScale: true });
@@ -94,8 +93,7 @@ test('lecture : chaque note jouée appartient à l’accord affiché (générate
       assert.ok(QUALITY_LIST.some((q) => q.id === c.quality), `qualité ${c.quality}`);
       if (i) assert.ok(!(c.root === gen.chords[i - 1].root && c.quality === gen.chords[i - 1].quality && c.bass === gen.chords[i - 1].bass), `${mood.id}/${seed} : accord répété`);
     });
-    const melody = generateMelody({ chords: gen.chords, key: k, params: { style: 'chant' }, seed });
-    const st = song({ key: k, chords: gen.chords, melody: { enabled: true, notes: melody }, arrangement: { ...DEFAULT_SONG.arrangement, bassPattern: 'rootFifth', chordPattern: 'arpUp' } });
+    const st = song({ key: k, chords: gen.chords, arrangement: { ...DEFAULT_SONG.arrangement, bassPattern: 'rootFifth', chordPattern: 'arpUp' } });
     for (const e of arrange(st)) {
       const chord = st.chords[e.chord] ?? chordAtTime(st.chords, e.start);
       if (e.track === 'chords') {
@@ -106,25 +104,8 @@ test('lecture : chaque note jouée appartient à l’accord affiché (générate
         const b = chord.bass ?? chord.root;
         assert.ok([pc(b), pc(b + 7)].includes(pc(e.midi)), `${mood.id}/${seed} : basse ${e.midi} sur ${chord.root}/${chord.bass}`);
       }
-      if (e.track === 'melody') {
-        const c = chordAtTime(st.chords, e.start);
-        assert.ok(allowedPitchClasses(c, k).includes(pc(e.midi)), `${mood.id}/${seed} : mélodie ${e.midi} frotte sur ${c.root} ${c.quality}`);
-      }
     }
   }
-});
-
-test('changer un accord recale la mélodie et ne touche pas aux autres accords', () => {
-  const chords = templateChords(TEMPLATES[0], 0);
-  const melody = generateMelody({ chords, key: { root: 0, scale: 'major' }, seed: 4 });
-  const st = song({ chords, melody: { enabled: true, notes: melody } });
-  const changed = updateChord(st, st.chords[1].id, { root: 4, quality: '7' }); // G → E7
-  assert.deepEqual(changed.chords.map((c) => c.root), [0, 4, 9, 5]);
-  changed.melody.notes.filter((n) => n.start >= 4 && n.start < 8).forEach((n) => {
-    assert.ok(allowedPitchClasses(changed.chords[1], changed.key).includes(pc(n.midi)), `note ${n.midi} frotte sur E7`);
-  });
-  const outside = (s) => s.melody.notes.filter((n) => n.start < 4 || n.start >= 8).map((n) => n.midi);
-  assert.deepEqual(outside(changed), outside(st));
 });
 
 test('changement de mode aller-retour', () => {
@@ -136,7 +117,7 @@ test('changement de mode aller-retour', () => {
 test('silences : rien ne joue pendant un silence, la suite reste en place', () => {
   const st = addChord(song({}), { rest: true, beats: 4 }, 1);
   const events = arrange(st);
-  assert.ok(events.filter((e) => e.track !== 'melody').every((e) => e.start < 4 || e.start >= 8));
+  assert.ok(events.every((e) => e.start < 4 || e.start >= 8));
   assert.equal(st.chords[1].rest, true);
   assert.equal(sanitizeSong(st).chords[1].rest, true);
 });
@@ -153,12 +134,10 @@ test('suggestions valides dans toutes les tonalités', () => {
 });
 
 test('ce que montre l’éditeur = ce que joue la tête de lecture (même avec du swing)', () => {
-  const melody = [{ midi: 72, start: 0.5, dur: 0.5, vel: 0.8 }, { midi: 74, start: 1.5, dur: 1, vel: 0.8 }];
   const bass = [{ midi: 41, start: 0, dur: 1.5, vel: 0.8 }, { midi: 43, start: 4.5, dur: 1, vel: 0.8 }];
-  const st = song({ melody: { enabled: true, notes: melody }, bassLine: { custom: true, notes: bass }, arrangement: { ...DEFAULT_SONG.arrangement, swing: 1 } });
+  const st = song({ bassLine: { custom: true, notes: bass }, arrangement: { ...DEFAULT_SONG.arrangement, swing: 1 } });
   const ev = arrange(st);
   const pick = (t) => ev.filter((e) => e.track === t).map(({ midi, start, dur }) => ({ midi, start, dur }));
-  assert.deepEqual(pick('melody'), melody.map(({ midi, start, dur }) => ({ midi, start, dur })));
   assert.deepEqual(pick('bass'), bass.map(({ midi, start, dur }) => ({ midi, start, dur })));
 });
 
@@ -177,4 +156,12 @@ test('basse écrite : intacte quand on remplace un accord, suit sa carte, change
   // Insérer un accord avant G7 : les notes de G7 et des suivants avancent avec leur carte.
   const inserted = addChord(st, { root: 9, quality: 'min' }, 1);
   assert.deepEqual(inserted.bassLine.notes.map((n) => [n.midi, n.start]), [[41, 0], [35, 8], [38, 10], [45, 16]]);
+});
+
+test('changer un accord ne touche pas aux autres accords', () => {
+  const st = song({ chords: templateChords(TEMPLATES[0], 0) });
+  const changed = updateChord(st, st.chords[1].id, { root: 4, quality: '7' });
+  assert.deepEqual(changed.chords.map((c) => [c.root, c.quality]), [[0, 'maj'], [4, '7'], [9, 'min'], [5, 'maj']]);
+  const v = (s) => voiceProgression(s.chords, 'auto');
+  assert.deepEqual([v(changed)[0], v(changed)[2], v(changed)[3]], [v(st)[0], v(st)[2], v(st)[3]]);
 });

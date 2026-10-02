@@ -10,14 +10,6 @@ export const INSTRUMENTS = {
     { id: 'organ', label: 'Orgue' },
     { id: 'pluck', label: 'Pluck' },
   ],
-  melody: [
-    { id: 'bell', label: 'Cloche FM' },
-    { id: 'lead', label: 'Lead synthé' },
-    { id: 'flute', label: 'Flûte' },
-    { id: 'pluck', label: 'Pluck' },
-    { id: 'epiano', label: 'Piano électrique' },
-    { id: 'piano', label: 'Piano doux' },
-  ],
   bass: [
     { id: 'sub', label: 'Sub' },
     { id: 'synthbass', label: 'Basse synthé' },
@@ -25,7 +17,7 @@ export const INSTRUMENTS = {
   ],
 };
 
-const TRACKS = ['chords', 'melody', 'bass'];
+const TRACKS = ['chords', 'bass'];
 const MOBILE = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
 // Garde-fou : au-delà, les notes les plus anciennes s'éteignent en douceur.
 const MAX_VOICES = 96;
@@ -275,8 +267,8 @@ export class Synth {
     this.ctx = null;
     this.voices = new Set();
     this.keepAlive = false;
-    this.mix = { chords: 0.8, melody: 0.75, bass: 0.8, reverb: 0.28 };
-    this.muted = { chords: false, melody: false, bass: false };
+    this.mix = { chords: 0.8, bass: 0.8, reverb: 0.28 };
+    this.muted = { chords: false, bass: false };
   }
 
   /** À appeler sur un geste de l'utilisateur (obligatoire sur iPhone). */
@@ -367,7 +359,7 @@ export class Synth {
   /**
    * Joue une note. choke = { group, token } : au moment où elle démarre, elle étouffe les notes
    * du même groupe venant d'un autre accord (token différent) ou de même hauteur.
-   * Avec mono: true, elle étouffe tout le groupe (mélodie, basse : une note à la fois).
+   * Avec mono: true, elle étouffe tout le groupe (basse : une note à la fois).
    */
   play(track, instrument, midi, when, dur, vel = 0.7, choke = null) {
     if (!this.ctx) return;

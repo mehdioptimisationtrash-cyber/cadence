@@ -11,9 +11,9 @@ function fileName(ctx, suffix = '') {
 }
 
 const EXPORTS = [
-  { value: 'all', label: 'Tout', opts: {}, suffix: '', hint: 'accords, basse et mélodie, tels qu’on les entend' },
+  { value: 'all', label: 'Tout', opts: {}, suffix: '', hint: 'accords et basse, tels qu’on les entend' },
   { value: 'block', label: 'Plaqués', opts: { blockChords: true }, suffix: '-plaque', hint: 'accords tenus, faciles à retravailler' },
-  { value: 'melody', label: 'Mélodie', opts: { only: 'melody' }, suffix: '-melodie', hint: 'la mélodie seule' },
+  { value: 'chords', label: 'Accords', opts: { only: 'chords' }, suffix: '-accords', hint: 'les accords seuls, tels qu’on les entend' },
   { value: 'bass', label: 'Basse', opts: { only: 'bass' }, suffix: '-basse', hint: 'la ligne de basse seule' },
 ];
 
@@ -120,7 +120,7 @@ function exportSection(ctx) {
         h('div', { class: 'btn-row' },
           h('button', { class: 'btn primary', onClick: save }, icon('download'), 'Enregistrer le .mid'),
           canShareFiles ? shareBtn : null)),
-    h('p', { class: 'panel-sub', style: { marginTop: '8px' } }, 'Une piste par partie (accords, basse, mélodie), tempo inclus.'));
+    h('p', { class: 'panel-sub', style: { marginTop: '8px' } }, 'Une piste pour les accords, une pour la basse, tempo inclus.'));
 }
 
 function librarySection(ctx, rerender) {
@@ -182,7 +182,7 @@ const HELP = [
   ['Couleurs', '<b>Vert</b> = tonique (repos), <b>jaune</b> = sous-dominante (élan), <b>rouge</b> = dominante (tension), <b>rose</b> = dominante secondaire, <b>violet</b> = emprunt à un autre mode.'],
   ['Modifier', 'Touche une carte de la progression : durée, renversement, basse, qualité, variantes. Glisse la poignée ⋮⋮ pour réordonner.'],
   ['Générer', 'Dans <b>Générer</b>, choisis une ambiance et lance les dés, ou pars d’une progression célèbre. Change la tonalité en haut : les accords suivent.'],
-  ['Mélodie', 'Dans <b>Mélodie</b>, compose une ligne qui épouse tes accords. Le bouton ✎ au-dessus du piano roll permet de retoucher la mélodie ou la basse note par note : toucher pour ajouter ou effacer, glisser pour déplacer.'],
+  ['Basse', 'Le bouton ✎ Basse au-dessus du piano roll ouvre l’éditeur : glisse pour te déplacer, pince pour zoomer, crayon pour ajouter, touche une note pour la modifier.'],
   ['Clavier', 'Joue sur le clavier du milieu (plusieurs doigts) : la note et l’accord s’affichent, « Ajouter » le met dans la progression. <b>Maintenir</b> construit un accord note par note ; <b>Siffler</b> ouvre l’accordeur micro. Sur Mac, les touches Q/A S D F G H J K jouent les notes (W/Z X pour l’octave).'],
   ['Exporter', 'Dans <b>Outils</b> : sur iPhone, « Partager » envoie le fichier MIDI par AirDrop ou dans Fichiers ; sur Mac (Chrome), glisse la tuile directement dans Logic, Ableton, FL Studio…'],
   ['Raccourcis Mac', '<b>Espace</b> lecture · <b>1–7</b> ajoute le degré · <b>⌘Z / ⇧⌘Z</b> annuler / rétablir · <b>Suppr</b> retire l’accord sélectionné · <b>← →</b> sélection.'],

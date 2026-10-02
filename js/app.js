@@ -4,7 +4,6 @@ import {
 } from './state.js';
 import { insertChord, removeChord } from './actions.js';
 import { diatonicChord } from './theory/harmony.js';
-import { generateMelody } from './gen/melody.js';
 import { Synth } from './audio/synth.js';
 import { Player } from './audio/player.js';
 import { MidiOut } from './midi/webmidi.js';
@@ -15,7 +14,6 @@ import { renderStageHead, renderTimeline, paintPlayhead, insertionBanner } from 
 import { renderInspector } from './ui/inspector.js';
 import { renderPalette } from './ui/palette.js';
 import { renderGeneratePanel } from './ui/generatePanel.js';
-import { renderMelodyPanel } from './ui/melodyPanel.js';
 import { renderSoundPanel } from './ui/soundPanel.js';
 import { renderToolsPanel } from './ui/toolsPanel.js';
 import { renderKeySheet } from './ui/keysheet.js';
@@ -30,7 +28,6 @@ const desktop = window.matchMedia('(min-width: 1100px)');
 const TABS = [
   { id: 'palette', label: 'Accords', icon: 'palette' },
   { id: 'generate', label: 'Générer', icon: 'sparkle' },
-  { id: 'melody', label: 'Mélodie', icon: 'melody' },
   { id: 'sound', label: 'Son', icon: 'sliders' },
   { id: 'tools', label: 'Outils', icon: 'tools' },
 ];
@@ -40,16 +37,11 @@ function initialState() {
   if (shared) history.replaceState(null, '', location.pathname);
   const session = shared ? null : loadSession();
   const song = shared ?? session ?? sanitizeSong(DEFAULT_SONG);
-  const fresh = !shared && !session && song.melody.notes.length === 0;
-  const melody = fresh
-    ? { ...song.melody, notes: generateMelody({ chords: song.chords, key: song.key, params: song.melody.params, seed: 11 }) }
-    : song.melody;
   return {
     state: {
       ...song,
-      melody,
       selected: null,
-      ui: { tab: 'palette', autoMelody: true, tapToAdd: false, keyOptions: { transposeAll: true, adaptMode: true } },
+      ui: { tab: 'palette', tapToAdd: false, keyOptions: { transposeAll: true, adaptMode: true } },
     },
     shared: Boolean(shared),
   };
@@ -119,17 +111,14 @@ function renderRollHead() {
     h('span', { class: 'eyebrow' }, 'Arrangement'),
     h('div', { class: 'roll-legend' },
       h('span', {}, h('i', { style: { background: 'var(--fn-T)' } }), 'accords'),
-      h('span', {}, h('i', { style: { background: 'var(--trk-bass)' } }), 'basse'),
-      h('span', {}, h('i', { style: { background: 'var(--trk-melody)' } }), 'mélodie')),
+      h('span', {}, h('i', { style: { background: 'var(--trk-bass)' } }), 'basse')),
     h('div', { class: 'spacer' }),
-    h('button', { class: 'pill edit-pill', onClick: () => ctx.startEdit('melody'), title: 'Modifier la mélodie note par note' }, icon('edit'), ' Mélodie'),
     h('button', { class: 'pill edit-pill', onClick: () => ctx.startEdit('bass'), title: 'Modifier la basse note par note' }, icon('edit'), ' Basse'));
 }
 
 const PANELS = {
   palette: renderPalette,
   generate: renderGeneratePanel,
-  melody: renderMelodyPanel,
   sound: renderSoundPanel,
   tools: renderToolsPanel,
 };
@@ -200,7 +189,7 @@ function paintFrame() {
   paintPlayhead($('timeline'), state.chords, own ? pos : null);
   if (pos != null) {
     roll.draw(own ? pos : null);
-    const lit = { chords: [], bass: [], melody: [] };
+    const lit = { chords: [], bass: [] };
     player.events.forEach((e) => {
       if (pos >= e.start && pos < e.start + e.dur) lit[e.track].push(e.midi);
     });

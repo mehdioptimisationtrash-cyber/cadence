@@ -151,7 +151,7 @@ export class Player {
 
   trigger(e, when, dur) {
     const { instruments, internalSound } = this.state.arrangement;
-    // Un nouvel accord coupe le précédent ; mélodie et basse jouent une note à la fois.
+    // Un nouvel accord coupe le précédent ; la basse joue une note à la fois.
     const choke = e.track === 'chords' ? { group: 'chords', token: e.chord } : { group: e.track, mono: true };
     if (internalSound !== false) this.synth.play(e.track, instruments[e.track], e.midi, when, dur, e.vel, choke);
     this.midiOut?.send(e.track, e.midi, e.vel, when - this.synth.now(), dur);

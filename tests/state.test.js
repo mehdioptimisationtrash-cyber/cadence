@@ -14,7 +14,7 @@ test('sanitize rejects junk and keeps valid data', () => {
   assert.equal(s.key.scale, 'major');
   assert.equal(s.chords.length, 1);
   assert.equal(s.chords[0].bass, null);
-  assert.equal(s.melody.notes.length, 1);
+  assert.equal(s.melody, undefined);
   assert.equal(sanitizeSong(null).chords.length, 4);
 });
 
@@ -54,14 +54,14 @@ test('store undo / redo', () => {
 });
 
 test('arrangement and MIDI file', () => {
-  const s = { ...fresh(), melody: { ...fresh().melody, notes: [{ midi: 72, start: 0, dur: 1, vel: 0.8 }] } };
+  const s = fresh();
   const events = arrange(s);
   assert.ok(events.some((e) => e.track === 'chords'));
   assert.ok(events.some((e) => e.track === 'bass'));
-  assert.ok(events.some((e) => e.track === 'melody'));
+  assert.ok(events.every((e) => e.track === 'chords' || e.track === 'bass'));
   const bytes = midiFromState(s);
   assert.equal(String.fromCharCode(...bytes.slice(0, 4)), 'MThd');
-  assert.equal(bytes[11], 4); // tempo + 3 pistes
+  assert.equal(bytes[11], 3); // tempo + accords + basse
   const tiny = buildMidiFile({ tempo: 120, tracks: [{ name: 'x', channel: 0, program: 0, notes: [{ midi: 60, start: 0, dur: 1, vel: 1 }] }] });
   assert.ok(tiny.length > 40);
 });

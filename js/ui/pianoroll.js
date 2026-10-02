@@ -1,4 +1,4 @@
-// Piano roll (canvas) : vue d'ensemble des accords, de la basse et de la mélodie.
+// Piano roll (canvas) : vue d'ensemble des accords et de la basse.
 // L'édition se fait dans l'éditeur plein écran (noteEditor.js) ; un toucher ici l'ouvre.
 import { arrange, chordStarts, totalBeats } from '../gen/arrange.js';
 import { pc } from '../theory/notes.js';
@@ -6,7 +6,7 @@ import { scalePitchClasses } from '../theory/scales.js';
 
 const COLORS = {
   T: '#5fd3b0', SD: '#f2c14e', D: '#ff6b5a', sec: '#ff7ab8', borrow: '#a78bfa', rest: '#6f687a',
-  melody: '#7ee3ff', bass: '#ffb547', grid: 'rgba(255,244,230,0.06)', bar: 'rgba(255,244,230,0.14)', text: 'rgba(244,237,227,0.75)',
+  bass: '#ffb547', grid: 'rgba(255,244,230,0.06)', bar: 'rgba(255,244,230,0.14)', text: 'rgba(244,237,227,0.75)',
 };
 const MIN_BEAT_PX = 26;
 
@@ -70,7 +70,7 @@ export function createPianoRoll(canvas, wrap, ctx) {
     events.forEach((e) => {
       const owner = s.chords[e.chord];
       if (e.track === 'chords' && !owner) return; // progression raccourcie, notes pas encore recalculées
-      const color = e.track === 'melody' ? COLORS.melody : e.track === 'bass' ? COLORS.bass : COLORS[ctx.fn(owner)];
+      const color = e.track === 'bass' ? COLORS.bass : COLORS[ctx.fn(owner)];
       const active = position != null && position >= e.start && position < e.start + e.dur;
       g.globalAlpha = e.track === 'chords' ? (active ? 0.95 : 0.55) : active ? 1 : 0.85;
       g.fillStyle = color;
@@ -90,8 +90,8 @@ export function createPianoRoll(canvas, wrap, ctx) {
     draw(ctx.player.playing && !ctx.player.previewing ? ctx.player.position() : null);
   }
 
-  // Un toucher (sans défilement) ouvre l'éditeur de notes sur la mélodie.
-  canvas.addEventListener('click', () => ctx.startEdit('melody'));
+  // Un toucher (sans défilement) ouvre l'éditeur de la basse.
+  canvas.addEventListener('click', () => ctx.startEdit('bass'));
   window.addEventListener('resize', () => refresh());
   return { refresh, draw };
 }

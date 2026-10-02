@@ -4,7 +4,6 @@ import { QUALITIES } from './theory/chords.js';
 import { CHORD_PATTERNS, BASS_PATTERNS } from './gen/patterns.js';
 import { VOICINGS } from './theory/voicing.js';
 import { INSTRUMENTS } from './audio/synth.js';
-import { MELODY_STYLES, REGISTERS } from './gen/melody.js';
 import { MOODS } from './gen/progressions.js';
 
 const SESSION_KEY = 'cadence.session';
@@ -31,15 +30,10 @@ export const DEFAULT_SONG = {
     chordPattern: 'block',
     bassPattern: 'hold',
     swing: 0,
-    instruments: { chords: 'epiano', melody: 'bell', bass: 'sub' },
-    mix: { chords: 0.8, melody: 0.72, bass: 0.8, reverb: 0.28 },
-    muted: { chords: false, melody: false, bass: false },
+    instruments: { chords: 'epiano', bass: 'sub' },
+    mix: { chords: 0.8, bass: 0.8, reverb: 0.28 },
+    muted: { chords: false, bass: false },
     internalSound: true,
-  },
-  melody: {
-    enabled: true,
-    notes: [],
-    params: { style: 'chant', density: 0.55, register: 'mid', syncopation: 0.25, repetition: 0.6 },
   },
   bassLine: { custom: false, notes: [] },
   generator: { mood: 'reveur', length: 4, beatsPerChord: 4, audace: 0.4, startOnTonic: true, adaptScale: true, smoothBass: 0.5 },
@@ -79,9 +73,7 @@ export function sanitizeSong(raw) {
   const d = DEFAULT_SONG;
   const s = raw && typeof raw === 'object' ? raw : {};
   const a = s.arrangement ?? {};
-  const m = s.melody ?? {};
   const g = s.generator ?? {};
-  const p = m.params ?? {};
   return {
     key: { root: int(s.key?.root, 0, 11, d.key.root), scale: getScale(s.key?.scale).id },
     tempo: int(s.tempo, 40, 220, d.tempo),
@@ -96,26 +88,14 @@ export function sanitizeSong(raw) {
       swing: num(a.swing, 0, 1, 0),
       instruments: {
         chords: oneOf(a.instruments?.chords, ids(INSTRUMENTS.chords), d.arrangement.instruments.chords),
-        melody: oneOf(a.instruments?.melody, ids(INSTRUMENTS.melody), d.arrangement.instruments.melody),
         bass: oneOf(a.instruments?.bass, ids(INSTRUMENTS.bass), d.arrangement.instruments.bass),
       },
       mix: {
-        chords: num(a.mix?.chords, 0, 1, 0.8), melody: num(a.mix?.melody, 0, 1, 0.72),
+        chords: num(a.mix?.chords, 0, 1, 0.8),
         bass: num(a.mix?.bass, 0, 1, 0.8), reverb: num(a.mix?.reverb, 0, 1, 0.28),
       },
-      muted: { chords: bool(a.muted?.chords, false), melody: bool(a.muted?.melody, false), bass: bool(a.muted?.bass, false) },
+      muted: { chords: bool(a.muted?.chords, false), bass: bool(a.muted?.bass, false) },
       internalSound: bool(a.internalSound, true),
-    },
-    melody: {
-      enabled: bool(m.enabled, true),
-      notes: (Array.isArray(m.notes) ? m.notes : []).slice(0, 1024).map(sanitizeNote).filter(Boolean),
-      params: {
-        style: oneOf(p.style, ids(MELODY_STYLES), 'chant'),
-        density: num(p.density, 0, 1, 0.55),
-        register: oneOf(p.register, ids(REGISTERS), 'mid'),
-        syncopation: num(p.syncopation, 0, 1, 0.25),
-        repetition: num(p.repetition, 0, 1, 0.6),
-      },
     },
     bassLine: {
       custom: bool(s.bassLine?.custom, false),
@@ -135,8 +115,8 @@ export function sanitizeSong(raw) {
 
 /** Partie « musique » de l'état (ce qu'on sauvegarde et partage). */
 export function songOf(state) {
-  const { key, tempo, loop, level, notation, chords, arrangement, melody, bassLine, generator } = state;
-  return { key, tempo, loop, level, notation, chords, arrangement, melody, bassLine, generator };
+  const { key, tempo, loop, level, notation, chords, arrangement, bassLine, generator } = state;
+  return { key, tempo, loop, level, notation, chords, arrangement, bassLine, generator };
 }
 
 // --- Magasin ---
@@ -151,7 +131,6 @@ function keepSettings(restored, current) {
     generator: current.generator,
     level: current.level,
     selected,
-    melody: { ...restored.melody, params: current.melody.params },
   };
 }
 
@@ -264,7 +243,6 @@ export function shareUrl(state) {
   const compact = {
     ...song,
     chords: song.chords.map(({ id, ...rest }) => rest),
-    melody: { ...song.melody, notes: song.melody.notes.map((n) => ({ ...n, start: +n.start.toFixed(3), dur: +n.dur.toFixed(3), vel: +n.vel.toFixed(2) })) },
   };
   const base = `${location.origin}${location.pathname}`;
   return `${base}#s=${toBase64Url(JSON.stringify(compact))}`;

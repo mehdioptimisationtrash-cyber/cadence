@@ -2,18 +2,18 @@
 
 > Dernière analyse: 2026-10-01
 
-PWA (iPhone + Mac) de composition harmonique façon Scaler / Chord Wizard : progressions d'accords, harmonisation, mélodies, export MIDI. Vanilla JS (modules ES), aucun build, sons synthétisés en Web Audio, hors ligne.
+PWA (iPhone + Mac) de composition harmonique façon Scaler / Chord Wizard : progressions d'accords, harmonisation, ligne de basse, export MIDI. Vanilla JS (modules ES), aucun build, sons synthétisés en Web Audio, hors ligne.
 
 **En ligne :** https://mehdioptimisationtrash-cyber.github.io/cadence/ (repo `mehdioptimisationtrash-cyber/cadence`, GitHub Pages sur `main`).
 
 ## Architecture & fichiers clés
 - `js/theory/slash.js` — accords slash (renversements, couleurs de basse, pédales, basse fluide).
 - `js/theory/` — notes & orthographe (`notes.js`), 19 gammes/modes (`scales.js`), 37 qualités d'accords + détection (`chords.js`), harmonie : accords diatoniques par empilement de tierces, chiffrage romain, fonctions T/SD/D, emprunts, dominantes secondaires, substitutions, suggestions « et ensuite ? » (`harmony.js`), voicings + conduite des voix (`voicing.js`).
-- `js/gen/` — 52 progressions célèbres + générateur par ambiance (`progressions.js`), mélodie motivique (`melody.js`), motifs de jeu accords/basse + swing (`patterns.js`), compilation en notes datées (`arrange.js`).
+- `js/gen/` — 52 progressions célèbres + générateur par ambiance (`progressions.js`), motifs de jeu accords/basse + swing (`patterns.js`), compilation en notes datées (`arrange.js`).
 - `js/audio/` — instruments synthétisés + réverb (`synth.js`), lecteur à lookahead (`player.js`).
 - `js/midi/` — export .mid type 1 (`export.js`), sortie Web MIDI Chrome (`webmidi.js`).
 - `js/state.js` (magasin immuable, annuler/rétablir, sanitize, localStorage, liens #s=), `js/actions.js` (actions pures), `js/app.js` (assemblage, raccourcis, boucle d'animation).
-- `js/ui/` — un fichier par zone (topbar, timeline, inspector, palette, generatePanel, melodyPanel, soundPanel, toolsPanel, keysheet, keyboard, pianoroll).
+- `js/ui/` — un fichier par zone (topbar, timeline, inspector, palette, generatePanel, soundPanel, toolsPanel, keysheet, keyboard, keybed, tuner, pianoroll, noteEditor).
 - `sw.js` réseau d'abord ; **à chaque modif : augmenter `CACHE_VERSION` et `APP_VERSION` (`js/version.js`)**, et ajouter tout nouveau fichier JS à `SHELL`.
 
 ## Lancer / tester
@@ -35,6 +35,7 @@ PWA (iPhone + Mac) de composition harmonique façon Scaler / Chord Wizard : prog
 - 2026-10-02 : fiabilité (v12) : voicing indépendant par accord (écoute = lecture, plus d'effet sur les voisins) ; mélodie/basse écrites recalées automatiquement quand un accord change (`js/gen/adapt.js`) ; réservoir mélodique par accord (pas de frottement sur les emprunts) ; silences `{rest:true}` ; insertion « + » entre les cartes (curseur `ui.insertAt`, bandeau) ; lignes écrites jouées sans swing (éditeur = lecture) ; orthographe des gammes exotiques corrigée ; doublons du générateur supprimés. Audit `tests/theory-audit.test.js` (12 tonalités × 19 gammes × 37 qualités × 5 voicings).
 - 2026-10-02 : toucher une carte (v13) joue l'accord + la basse réellement enregistrée à cet endroit (`ctx.auditionAt`, lue dans `arrange`), aussi pour les flèches et l'inspecteur.
 - 2026-10-02 : basse écrite sacrée (v14, `js/gen/adapt.js` réécrit) : les notes écrites suivent leur accord (par id) lors des insertions/suppressions/déplacements ; la basse écrite n'est modifiée que si la basse de l'accord change explicitement (seules les notes posées sur l'ancienne basse bougent) ; remplacer toute la progression (modèle/générateur) remet la basse au motif.
+- 2026-10-02 : **mélodie entièrement retirée** à la demande de Mehdi (v15) : plus d'onglet, de génération, de piste, d'édition ni d'export mélodie ; `melody.js` et `melodyPanel.js` supprimés ; l'éditeur plein écran ne sert plus qu'à la basse (accords en fantôme). Ne pas la réintroduire sans demande explicite.
 
 ## TODO / idées
 - Retours de Mehdi après essai sur iPhone.

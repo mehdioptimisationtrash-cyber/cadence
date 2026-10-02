@@ -8,7 +8,6 @@ import { releaseBass } from '../actions.js';
 
 const TRACKS = [
   { id: 'chords', label: 'Accords', color: 'var(--fn-T)' },
-  { id: 'melody', label: 'Mélodie', color: 'var(--trk-melody)' },
   { id: 'bass', label: 'Basse', color: 'var(--trk-bass)' },
 ];
 
